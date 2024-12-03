@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -11,35 +12,16 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      setLoading(false);
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
+      if (error) throw error;
 
       console.log('Login successful:', data);
+      // Handle successful login here
       
     } catch (err) {
       setError(err.message || 'An error occurred during login');
@@ -110,7 +92,19 @@ const Login = () => {
               <button
                 type="button"
                 className="font-medium text-blue-600 hover:text-blue-500"
-                onClick={() => console.log('Forgot password clicked')}
+                onClick={async () => {
+                  if (!email) {
+                    setError('Please enter your email first');
+                    return;
+                  }
+                  try {
+                    const { error } = await supabase.auth.resetPasswordForEmail(email);
+                    if (error) throw error;
+                    alert('Password reset instructions sent to your email');
+                  } catch (err) {
+                    setError(err.message);
+                  }
+                }}
               >
                 Forgot your password?
               </button>
