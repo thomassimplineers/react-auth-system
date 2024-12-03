@@ -30,6 +30,19 @@ const Login = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google'
+      });
+
+      if (error) throw error;
+      
+    } catch (err) {
+      setError(err.message || 'An error occurred during Google login');
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -92,26 +105,14 @@ const Login = () => {
               <button
                 type="button"
                 className="font-medium text-blue-600 hover:text-blue-500"
-                onClick={async () => {
-                  if (!email) {
-                    setError('Please enter your email first');
-                    return;
-                  }
-                  try {
-                    const { error } = await supabase.auth.resetPasswordForEmail(email);
-                    if (error) throw error;
-                    alert('Password reset instructions sent to your email');
-                  } catch (err) {
-                    setError(err.message);
-                  }
-                }}
+                onClick={() => console.log('Forgot password clicked')}
               >
                 Forgot your password?
               </button>
             </div>
           </div>
 
-          <div>
+          <div className="space-y-4">
             <button
               type="submit"
               disabled={loading}
@@ -129,7 +130,15 @@ const Login = () => {
                   </svg>
                 </span>
               ) : null}
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in...' : 'Sign in with Email'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Sign in with Google
             </button>
           </div>
         </form>
