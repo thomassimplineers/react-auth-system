@@ -1,14 +1,25 @@
-import { useState } from 'react';
+import { AuthProvider } from './components/AuthProvider';
 import Login from './components/Login';
-import Register from './components/Register';
+import { useAuth } from './components/AuthProvider';
+
+const AuthenticatedApp = () => {
+  return (
+    <div className="p-4">
+      <h1>Welcome to your dashboard!</h1>
+      {/* Add your authenticated app content here */}
+    </div>
+  );
+};
 
 function App() {
-  const [isLogin, setIsLogin] = useState(true);
+  const { user } = useAuth();
 
   return (
-    <div className="App">
-      {isLogin ? <Login /> : <Register />}
-    </div>
+    <AuthProvider>
+      <div className="App">
+        {user ? <AuthenticatedApp /> : <Login />}
+      </div>
+    </AuthProvider>
   );
 }
 
