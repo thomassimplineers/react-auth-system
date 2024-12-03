@@ -6,12 +6,26 @@ const Chat = () => {
   const [newMessage, setNewMessage] = useState('');
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
+  const [userNicknames, setUserNicknames] = useState({});
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       console.log('Current user:', user);
       setUser(user);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nickname')
+        .eq('id', user.id)
+        .single();
+        
+      if (profile) {
+        setUserNicknames(prev => ({
+          ...prev,
+          [user.id]: profile.nickname
+        }));
+      }
     };
     getUser();
   }, []);
@@ -26,6 +40,7 @@ const Chat = () => {
       }, payload => {
         console.log('New message received:', payload);
         setMessages(current => [...current, payload.new]);
+        fetchNickname(payload.new.user_id);
       })
       .subscribe();
 
@@ -41,6 +56,10 @@ const Chat = () => {
       }
       console.log('Fetched messages:', data);
       setMessages(data || []);
+
+      // Fetch nicknames for all users
+      const userIds = [...new Set(data.map(m => m.user_id))];
+      userIds.forEach(fetchNickname);
     };
     getMessages();
 
@@ -48,6 +67,23 @@ const Chat = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const fetchNickname = async (userId) => {
+    if (userNicknames[userId]) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('nickname')
+      .eq('id', userId)
+      .single();
+
+    if (profile) {
+      setUserNicknames(prev => ({
+        ...prev,
+        [userId]: profile.nickname
+      }));
+    }
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -78,17 +114,6 @@ const Chat = () => {
 
   return (
     <div className="flex flex-col h-screen">
-      <header className="bg-blue-600 text-white p-4">
-        <h1 className="text-xl">Chat Room</h1>
-        {user && <p className="text-sm">Logged in as: {user.email}</p>}
-      </header>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded">
-          {error}
-        </div>
-      )}
-
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map(message => (
           <div 
@@ -101,7 +126,9 @@ const Chat = () => {
                 'bg-blue-500 text-white' : 
                 'bg-gray-200'}
             `}>
-              <p className="text-sm">{message.sender}</p>
+              <p className="text-sm font-semibold">
+                {userNicknames[message.user_id] || message.sender.split('@')[0]}
+              </p>
               <p>{message.content}</p>
             </div>
           </div>
