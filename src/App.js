@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import Login from './components/Login';
 import Register from './components/Register';
-import ChatRoom from './components/ChatRoom';
+import Chat from './components/Chat';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -13,18 +13,20 @@ function App() {
       setSession(session);
     });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  if (!session) {
-    return isLogin ? 
-      <Login onRegisterClick={() => setIsLogin(false)} /> : 
-      <Register onLoginClick={() => setIsLogin(true)} />;
+  if (session) {
+    return <Chat />;
   }
 
-  return <ChatRoom session={session} />;
+  return isLogin ? 
+    <Login onRegisterClick={() => setIsLogin(false)} /> : 
+    <Register onLoginClick={() => setIsLogin(true)} />;
 }
 
 export default App;
