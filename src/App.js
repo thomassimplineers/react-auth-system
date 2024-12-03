@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Chat from './components/Chat';
 import Profile from './components/Profile';
+import NavMenu from './components/Menu';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -22,25 +23,25 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const renderView = () => {
+    switch(currentView) {
+      case 'chat':
+        return <Chat />;
+      case 'profile':
+        return <Profile />;
+      case 'stats':
+        return <div className="p-4">Statistics Coming Soon</div>;
+      default:
+        return <Chat />;
+    }
+  };
+
   if (session) {
     return (
       <div className="h-screen flex flex-col">
         <nav className="bg-blue-600 text-white p-4">
           <div className="flex justify-between items-center">
-            <div className="flex space-x-4">
-              <button 
-                onClick={() => setCurrentView('chat')}
-                className={`px-3 py-1 rounded ${currentView === 'chat' ? 'bg-blue-700' : 'hover:bg-blue-500'}`}
-              >
-                Chat
-              </button>
-              <button 
-                onClick={() => setCurrentView('profile')}
-                className={`px-3 py-1 rounded ${currentView === 'profile' ? 'bg-blue-700' : 'hover:bg-blue-500'}`}
-              >
-                Profile
-              </button>
-            </div>
+            <NavMenu setCurrentView={setCurrentView} />
             <button 
               onClick={() => supabase.auth.signOut()}
               className="px-3 py-1 bg-red-500 rounded hover:bg-red-600"
@@ -49,7 +50,7 @@ function App() {
             </button>
           </div>
         </nav>
-        {currentView === 'chat' ? <Chat /> : <Profile />}
+        {renderView()}
       </div>
     );
   }
