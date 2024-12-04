@@ -1,36 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import OnlineUsers from './OnlineUsers';
 
-// ... (tidigare komponenter oförändrade)
-
-const OnlineUsers = ({ userProfiles }) => (
-  <div className="w-64 bg-white shadow-lg p-4 hidden lg:block">
-    <h2 className="text-lg font-semibold mb-4">Online Users</h2>
-    <div className="space-y-2">
-      {Object.entries(userProfiles).map(([userId, profile]) => (
-        <div key={userId} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg">
-          <div className="relative">
-            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <span className="text-white">{profile.nickname?.[0]}</span>
-              )}
-            </div>
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-          </div>
-          <span className="text-sm font-medium">{profile.nickname}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+// ... (övriga komponenter som tidigare)
 
 const Chat = () => {
-  // ... (tidigare state och useEffect oförändrade)
+  // ... (state och funktioner som tidigare)
 
   return (
     <div className="flex h-screen bg-gray-100">
+      {/* Vänster sidofält med trådar */}
       <div className="w-64 bg-white shadow-lg p-4 hidden lg:block overflow-y-auto">
         <div className="space-y-4">
           <NewThreadButton onCreate={handleCreateThread} />
@@ -42,7 +21,8 @@ const Chat = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col max-w-3xl mx-auto">
+      {/* Huvudinnehåll med chat */}
+      <div className="flex-1 flex flex-col">
         {currentThread && (
           <div className="bg-white shadow-sm p-4 border-b">
             <h2 className="text-lg font-semibold">{currentThread.title}</h2>
@@ -92,6 +72,7 @@ const Chat = () => {
         </form>
       </div>
 
+      {/* Höger sidofält med online användare */}
       <OnlineUsers userProfiles={userProfiles} />
     </div>
   );
