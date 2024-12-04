@@ -60,7 +60,16 @@ const Sidebar = ({ children, title }) => (
 );
 
 const Chat = () => {
-  // ... existing state and effects
+  const [messages, setMessages] = useState([]);
+  const [threads, setThreads] = useState([]);
+  const [currentThreadId, setCurrentThreadId] = useState(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
+  const [userProfiles, setUserProfiles] = useState({});
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // ... resten av dina useEffects och funktioner ...
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
