@@ -1,34 +1,57 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+const ChatMessage = ({ message, isOwnMessage, avatarUrl, nickname }) => (
+  <div className={`flex items-start gap-2 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-blue-500 flex items-center justify-center">
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-white text-sm">{nickname?.[0]?.toUpperCase()}</span>
+      )}
+    </div>
+    <div className={`
+      max-w-xs rounded-lg px-4 py-2
+      ${isOwnMessage ? 'bg-blue-500 text-white' : 'bg-gray-200'}
+    `}>
+      <p className="text-sm font-semibold">{nickname}</p>
+      <p>{message.content}</p>
+    </div>
+  </div>
+);
+
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
-  const [userNicknames, setUserNicknames] = useState({});
+  const [userProfiles, setUserProfiles] = useState({});
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user);
       setUser(user);
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nickname')
-        .eq('id', user.id)
-        .single();
-        
-      if (profile) {
-        setUserNicknames(prev => ({
-          ...prev,
-          [user.id]: profile.nickname
-        }));
-      }
+      await fetchUserProfile(user.id);
     };
     getUser();
   }, []);
+
+  const fetchUserProfile = async (userId) => {
+    if (userProfiles[userId]) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('nickname, avatar_url')
+      .eq('id', userId)
+      .single();
+
+    if (profile) {
+      setUserProfiles(prev => ({
+        ...prev,
+        [userId]: profile
+      }));
+    }
+  };
 
   useEffect(() => {
     const channel = supabase
@@ -38,9 +61,8 @@ const Chat = () => {
         schema: 'public',
         table: 'messages'
       }, payload => {
-        console.log('New message received:', payload);
         setMessages(current => [...current, payload.new]);
-        fetchNickname(payload.new.user_id);
+        fetchUserProfile(payload.new.user_id);
       })
       .subscribe();
 
@@ -54,12 +76,11 @@ const Chat = () => {
         console.error('Error fetching messages:', error);
         return;
       }
-      console.log('Fetched messages:', data);
       setMessages(data || []);
 
-      // Fetch nicknames for all users
+      // Fetch profiles for all users
       const userIds = [...new Set(data.map(m => m.user_id))];
-      userIds.forEach(fetchNickname);
+      userIds.forEach(fetchUserProfile);
     };
     getMessages();
 
@@ -68,46 +89,25 @@ const Chat = () => {
     };
   }, []);
 
-  const fetchNickname = async (userId) => {
-    if (userNicknames[userId]) return;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('nickname')
-      .eq('id', userId)
-      .single();
-
-    if (profile) {
-      setUserNicknames(prev => ({
-        ...prev,
-        [userId]: profile.nickname
-      }));
-    }
-  };
-
   const handleSend = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
     setError(null);
 
     try {
-      console.log('Sending message as user:', user);
-      const { data, error } = await supabase.from('messages').insert({
+      const { error } = await supabase.from('messages').insert({
         content: newMessage,
         user_id: user.id,
         sender: user.email
       });
 
       if (error) {
-        console.error('Error sending message:', error);
         setError(error.message);
         return;
       }
 
-      console.log('Message sent successfully:', data);
       setNewMessage('');
     } catch (err) {
-      console.error('Exception sending message:', err);
       setError(err.message);
     }
   };
@@ -116,22 +116,13 @@ const Chat = () => {
     <div className="flex flex-col h-screen">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map(message => (
-          <div 
+          <ChatMessage
             key={message.id}
-            className={`flex ${message.user_id === user?.id ? 'justify-end' : 'justify-start'}`}
-          >
-            <div className={`
-              max-w-xs rounded-lg px-4 py-2
-              ${message.user_id === user?.id ? 
-                'bg-blue-500 text-white' : 
-                'bg-gray-200'}
-            `}>
-              <p className="text-sm font-semibold">
-                {userNicknames[message.user_id] || message.sender.split('@')[0]}
-              </p>
-              <p>{message.content}</p>
-            </div>
-          </div>
+            message={message}
+            isOwnMessage={message.user_id === user?.id}
+            avatarUrl={userProfiles[message.user_id]?.avatar_url}
+            nickname={userProfiles[message.user_id]?.nickname || message.sender.split('@')[0]}
+          />
         ))}
       </div>
 
