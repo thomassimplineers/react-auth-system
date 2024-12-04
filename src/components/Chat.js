@@ -10,13 +10,17 @@ const ChatMessage = ({ message, isOwnMessage, avatarUrl, nickname }) => (
         <span className="text-white text-sm">{nickname?.[0]?.toUpperCase()}</span>
       )}
     </div>
-    <div className={`
-      max-w-xs rounded-lg px-4 py-2
-      ${isOwnMessage ? 'bg-blue-500 text-white' : 'bg-gray-200'}
-    `}>
+    <div className={`max-w-xs rounded-lg px-4 py-2 ${isOwnMessage ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
       <p className="text-sm font-semibold">{nickname}</p>
       <p>{message.content}</p>
     </div>
+  </div>
+);
+
+const SidePanel = ({ title, children }) => (
+  <div className="w-64 bg-white shadow-lg p-4 hidden lg:block">
+    <h2 className="text-lg font-semibold mb-4">{title}</h2>
+    {children}
   </div>
 );
 
@@ -26,6 +30,7 @@ const Chat = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -38,7 +43,6 @@ const Chat = () => {
 
   const fetchUserProfile = async (userId) => {
     if (userProfiles[userId]) return;
-
     const { data: profile } = await supabase
       .from('profiles')
       .select('nickname, avatar_url')
@@ -50,6 +54,38 @@ const Chat = () => {
         ...prev,
         [userId]: profile
       }));
+    }
+  };
+
+  const handleImageUpload = async (event) => {
+    try {
+      setUploadingImage(true);
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `chat-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-images')
+        .getPublicUrl(filePath);
+
+      await supabase.from('messages').insert({
+        content: `![Image](${publicUrl})`,
+        user_id: user.id,
+        sender: user.email
+      });
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -77,16 +113,12 @@ const Chat = () => {
         return;
       }
       setMessages(data || []);
-
-      // Fetch profiles for all users
       const userIds = [...new Set(data.map(m => m.user_id))];
       userIds.forEach(fetchUserProfile);
     };
     getMessages();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, []);
 
   const handleSend = async (e) => {
@@ -101,11 +133,7 @@ const Chat = () => {
         sender: user.email
       });
 
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
+      if (error) throw error;
       setNewMessage('');
     } catch (err) {
       setError(err.message);
@@ -113,36 +141,82 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map(message => (
-          <ChatMessage
-            key={message.id}
-            message={message}
-            isOwnMessage={message.user_id === user?.id}
-            avatarUrl={userProfiles[message.user_id]?.avatar_url}
-            nickname={userProfiles[message.user_id]?.nickname || message.sender.split('@')[0]}
-          />
-        ))}
+    <div className="flex h-screen bg-gray-100">
+      <SidePanel title="Online Users">
+        {/* Online users list here */}
+        <div className="space-y-2">
+          {Object.entries(userProfiles).map(([userId, profile]) => (
+            <div key={userId} className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <span className="text-white">{profile.nickname?.[0]}</span>
+                )}
+              </div>
+              <span>{profile.nickname}</span>
+            </div>
+          ))}
+        </div>
+      </SidePanel>
+
+      <div className="flex-1 flex flex-col max-w-3xl mx-auto">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map(message => (
+            <ChatMessage
+              key={message.id}
+              message={message}
+              isOwnMessage={message.user_id === user?.id}
+              avatarUrl={userProfiles[message.user_id]?.avatar_url}
+              nickname={userProfiles[message.user_id]?.nickname || message.sender.split('@')[0]}
+            />
+          ))}
+        </div>
+
+        <form onSubmit={handleSend} className="p-4 bg-white border-t">
+          <div className="flex items-center gap-2">
+            <label className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={uploadingImage}
+                className="hidden"
+              />
+              📎
+            </label>
+            <input
+              type="text"
+              value={newMessage}
+              onChange={e => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="flex-1 border rounded-lg px-4 py-2"
+            />
+            <button 
+              type="submit"
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Send
+            </button>
+          </div>
+        </form>
       </div>
 
-      <form onSubmit={handleSend} className="p-4 bg-white border-t">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={e => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 border rounded-lg px-4 py-2"
-          />
-          <button 
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Send
-          </button>
+      <SidePanel title="Media Gallery">
+        {/* Media gallery here */}
+        <div className="grid grid-cols-2 gap-2">
+          {messages
+            .filter(m => m.content.startsWith('![Image]'))
+            .map(message => (
+              <img 
+                key={message.id}
+                src={message.content.match(/\((.+)\)/)[1]}
+                alt=""
+                className="w-full h-24 object-cover rounded"
+              />
+            ))}
         </div>
-      </form>
+      </SidePanel>
     </div>
   );
 };
