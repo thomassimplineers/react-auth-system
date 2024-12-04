@@ -1,4 +1,3 @@
-import { Menu } from 'lucide-react';
 import { useState } from 'react';
 
 const NavMenu = ({ setCurrentView }) => {
@@ -19,9 +18,9 @@ const NavMenu = ({ setCurrentView }) => {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-blue-700 rounded-lg"
+        className="p-2 hover:bg-blue-700 rounded-lg flex items-center"
       >
-        <Menu size={24} />
+        <span className="text-white">☰</span>
       </button>
 
       {isOpen && (
