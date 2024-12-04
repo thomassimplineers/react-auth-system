@@ -5,8 +5,10 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   useEffect(() => {
     const getProfile = async () => {
@@ -16,11 +18,14 @@ const Profile = () => {
         
         const { data: profile } = await supabase
           .from('profiles')
-          .select('nickname')
+          .select('nickname, avatar_url')
           .eq('id', user.id)
           .single();
           
-        if (profile) setNickname(profile.nickname);
+        if (profile) {
+          setNickname(profile.nickname);
+          setAvatarUrl(profile.avatar_url);
+        }
       } catch (error) {
         setError(error.message);
       } finally {
@@ -30,6 +35,52 @@ const Profile = () => {
     getProfile();
   }, []);
 
+  const uploadAvatar = async (event) => {
+    try {
+      setUploading(true);
+      setError(null);
+
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('You must select an image to upload.');
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          avatar_url: publicUrl,
+          nickname: nickname || user.email.split('@')[0]
+        });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      setAvatarUrl(publicUrl);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleUpdateNickname = async () => {
     try {
       setSaveStatus('saving');
@@ -37,7 +88,8 @@ const Profile = () => {
         .from('profiles')
         .upsert({ 
           id: user.id, 
-          nickname: nickname || user.email.split('@')[0]
+          nickname: nickname || user.email.split('@')[0],
+          avatar_url: avatarUrl
         });
 
       if (error) throw error;
@@ -56,8 +108,30 @@ const Profile = () => {
     <div className="max-w-2xl mx-auto p-4">
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex items-center space-x-4">
-          <div className="h-20 w-20 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl">
-            {nickname?.[0] || user?.email?.[0].toUpperCase()}
+          <div className="relative group">
+            <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-200">
+              {avatarUrl ? (
+                <img 
+                  src={avatarUrl} 
+                  alt="Avatar" 
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-blue-500 text-white text-2xl">
+                  {nickname?.[0] || user?.email?.[0].toUpperCase()}
+                </div>
+              )}
+            </div>
+            <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 cursor-pointer rounded-full transition-opacity">
+              <span className="text-sm">{uploading ? 'Uploading...' : 'Change'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={uploadAvatar}
+                disabled={uploading}
+                className="hidden"
+              />
+            </label>
           </div>
           <div className="flex-1">
             <div className="space-y-2">
