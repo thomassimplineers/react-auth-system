@@ -10,9 +10,18 @@ const ChatMessage = ({ message, isOwnMessage, avatarUrl, nickname }) => (
         <span className="text-white text-sm">{nickname?.[0]?.toUpperCase()}</span>
       )}
     </div>
-    <div className={`max-w-xs rounded-lg px-4 py-2 ${isOwnMessage ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
+    <div className={`max-w-sm rounded-lg px-4 py-2 ${isOwnMessage ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
       <p className="text-sm font-semibold">{nickname}</p>
-      <p>{message.content}</p>
+      {message.content.startsWith('![Image]') ? (
+        <img 
+          src={message.content.match(/\((.+)\)/)[1]} 
+          alt="Shared" 
+          className="mt-2 rounded-lg max-w-full h-auto"
+          style={{ maxHeight: '200px' }}
+        />
+      ) : (
+        <p>{message.content}</p>
+      )}
     </div>
   </div>
 );
@@ -143,7 +152,6 @@ const Chat = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       <SidePanel title="Online Users">
-        {/* Online users list here */}
         <div className="space-y-2">
           {Object.entries(userProfiles).map(([userId, profile]) => (
             <div key={userId} className="flex items-center gap-2">
@@ -203,7 +211,6 @@ const Chat = () => {
       </div>
 
       <SidePanel title="Media Gallery">
-        {/* Media gallery here */}
         <div className="grid grid-cols-2 gap-2">
           {messages
             .filter(m => m.content.startsWith('![Image]'))
