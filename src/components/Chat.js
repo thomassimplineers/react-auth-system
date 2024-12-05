@@ -68,8 +68,150 @@ const Chat = () => {
   const [error, setError] = useState(null);
   const [userProfiles, setUserProfiles] = useState({});
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [currentThread, setCurrentThread] = useState(null);
 
-  // ... resten av dina useEffects och funktioner ...
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchThreads = async () => {
+      const { data } = await supabase
+        .from('threads')
+        .select('*')
+        .order('last_message_at', { ascending: false });
+      setThreads(data || []);
+    };
+    fetchThreads();
+
+    const channel = supabase
+      .channel('threads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, fetchThreads)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  useEffect(() => {
+    if (!currentThreadId) return;
+
+    const fetchMessages = async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('thread_id', currentThreadId)
+        .order('created_at', { ascending: true });
+      setMessages(data || []);
+    };
+    fetchMessages();
+
+    const fetchThread = async () => {
+      const { data } = await supabase
+        .from('threads')
+        .select('*')
+        .eq('id', currentThreadId)
+        .single();
+      setCurrentThread(data);
+    };
+    fetchThread();
+
+    const channel = supabase
+      .channel('messages')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `thread_id=eq.${currentThreadId}`,
+      }, payload => {
+        setMessages(current => [...current, payload.new]);
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [currentThreadId]);
+
+  const handleCreateThread = async (title) => {
+    const { data, error: threadError } = await supabase
+      .from('threads')
+      .insert({
+        title,
+        created_by: user.id,
+        last_message_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (threadError) {
+      setError(threadError.message);
+      return;
+    }
+
+    setCurrentThreadId(data.id);
+  };
+
+  const handleImageUpload = async (event) => {
+    try {
+      setUploadingImage(true);
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `chat-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-images')
+        .getPublicUrl(filePath);
+
+      await supabase.from('messages').insert({
+        content: `![Image](${publicUrl})`,
+        user_id: user.id,
+        sender: user.email,
+        thread_id: currentThreadId
+      });
+
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !currentThreadId) return;
+    setError(null);
+
+    try {
+      const { error: messageError } = await supabase.from('messages').insert({
+        content: newMessage,
+        user_id: user.id,
+        sender: user.email,
+        thread_id: currentThreadId
+      });
+
+      if (messageError) throw messageError;
+
+      await supabase
+        .from('threads')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', currentThreadId);
+
+      setNewMessage('');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
