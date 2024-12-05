@@ -26,6 +26,7 @@ A modern real-time chat application built with React, Supabase, and Tailwind CSS
 - Supabase (Backend & Authentication)
 - Tailwind CSS (Styling)
 - Real-time subscriptions
+- Vercel (Hosting & Deployment)
 
 ## Setup & Installation
 1. Clone the repository
