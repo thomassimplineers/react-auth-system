@@ -1,56 +1,35 @@
-import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase';
+import { useState } from 'react';
 import Login from './components/Login';
 import Register from './components/Register';
 import Chat from './components/Chat';
-import Profile from './components/Profile';
-import NavMenu from './components/Menu';
+import Statistics from './components/Statistics';
 
 function App() {
   const [session, setSession] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
-  const [currentView, setCurrentView] = useState('chat');
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const renderView = () => {
-    switch(currentView) {
-      case 'chat':
-        return <Chat />;
-      case 'profile':
-        return <Profile />;
-      case 'stats':
-        return <div className="p-4">Statistics Coming Soon</div>;
-      default:
-        return <Chat />;
-    }
-  };
+  const [currentView, setCurrentView] = useState('chat'); // 'chat' or 'stats'
 
   if (session) {
     return (
-      <div className="h-screen flex flex-col">
-        <nav className="bg-blue-600 text-white p-4">
-          <div className="flex justify-between items-center">
-            <NavMenu setCurrentView={setCurrentView} />
-            <button 
-              onClick={() => supabase.auth.signOut()}
-              className="px-3 py-1 bg-red-500 rounded hover:bg-red-600"
+      <div className="h-screen flex flex-col bg-gray-50">
+        <nav className="bg-white shadow-sm p-4 flex justify-between items-center">
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setCurrentView('chat')}
+              className={`px-4 py-2 rounded-lg ${currentView === 'chat' ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
             >
-              Sign Out
+              Chat
+            </button>
+            <button
+              onClick={() => setCurrentView('stats')}
+              className={`px-4 py-2 rounded-lg ${currentView === 'stats' ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
+            >
+              Statistics
             </button>
           </div>
         </nav>
-        {renderView()}
+
+        {currentView === 'chat' ? <Chat /> : <Statistics />}
       </div>
     );
   }
