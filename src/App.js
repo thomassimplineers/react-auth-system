@@ -9,7 +9,7 @@ import Profile from './components/Profile';
 function App() {
   const [session, setSession] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
-  const [currentView, setCurrentView] = useState('chat'); // 'chat', 'stats', or 'profile'
+  const [currentView, setCurrentView] = useState('chat');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -42,14 +42,14 @@ function App() {
             >
               Statistics
             </button>
-          </div>
-          <div className="flex space-x-4">
             <button
               onClick={() => setCurrentView('profile')}
               className={`px-4 py-2 rounded-lg ${currentView === 'profile' ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
             >
               Profile
             </button>
+          </div>
+          <div>
             <button
               onClick={() => supabase.auth.signOut()}
               className="px-4 py-2 rounded-lg text-red-500 hover:bg-red-50"
