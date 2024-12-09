@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
-import { Auth } from '@supabase/ui-react';
-import { Button, IconButton } from '@supabase/ui-react';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { MessageSquare, BarChart2, User, LogOut } from 'lucide-react';
 import Chat from './components/Chat';
 import Statistics from './components/Statistics';
 import Profile from './components/Profile';
@@ -31,23 +32,22 @@ function App() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Welcome Back
           </h2>
-          <Auth.UserContextProvider supabaseClient={supabase}>
-            <Auth 
-              supabaseClient={supabase}
-              providers={['google', 'github']}
-              appearance={{
-                theme: 'light',
-                variables: {
-                  default: {
-                    colors: {
-                      brand: '#404040',
-                      brandAccent: '#52525b'
-                    }
+          <Auth
+            supabaseClient={supabase}
+            theme="dark"
+            appearance={{
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: '#4f46e5',
+                    brandAccent: '#4338ca'
                   }
                 }
-              }}
-            />
-          </Auth.UserContextProvider>
+              }
+            }}
+            providers={['google', 'github']}
+          />
         </div>
       </div>
     );
@@ -56,35 +56,35 @@ function App() {
     <div className="h-screen flex flex-col bg-gray-50">
       <nav className="bg-white shadow-sm p-4 flex justify-between items-center">
         <div className="flex space-x-4">
-          <Button
+          <button
             onClick={() => setCurrentView('chat')}
-            type={currentView === 'chat' ? 'primary' : 'default'}
-            size="small"
+            className={`inline-flex items-center px-4 py-2 rounded-lg ${currentView === 'chat' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
           >
+            <MessageSquare size={16} className="mr-2" />
             Chat
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={() => setCurrentView('stats')}
-            type={currentView === 'stats' ? 'primary' : 'default'}
-            size="small"
+            className={`inline-flex items-center px-4 py-2 rounded-lg ${currentView === 'stats' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
           >
+            <BarChart2 size={16} className="mr-2" />
             Statistics
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={() => setCurrentView('profile')}
-            type={currentView === 'profile' ? 'primary' : 'default'}
-            size="small"
+            className={`inline-flex items-center px-4 py-2 rounded-lg ${currentView === 'profile' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
           >
+            <User size={16} className="mr-2" />
             Profile
-          </Button>
+          </button>
         </div>
-        <Button
+        <button
           onClick={() => supabase.auth.signOut()}
-          type="danger"
-          size="small"
+          className="inline-flex items-center px-4 py-2 rounded-lg text-red-600 hover:bg-red-50"
         >
+          <LogOut size={16} className="mr-2" />
           Sign Out
-        </Button>
+        </button>
       </nav>
 
       {currentView === 'chat' && <Chat />}
