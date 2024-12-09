@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase';
 import Login from './components/Login';
 import Register from './components/Register';
 import Chat from './components/Chat';
@@ -8,6 +9,22 @@ function App() {
   const [session, setSession] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
   const [currentView, setCurrentView] = useState('chat'); // 'chat' or 'stats'
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (session) {
     return (
@@ -35,7 +52,7 @@ function App() {
   }
 
   return isLogin ? 
-    <Login onRegisterClick={() => setIsLogin(false)} /> : 
+    <Login onRegisterClick={() => setIsLogin(false)} setSession={setSession} /> : 
     <Register onLoginClick={() => setIsLogin(true)} />;
 }
 

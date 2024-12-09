@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-const Login = ({ onRegisterClick }) => {
+const Login = ({ onRegisterClick, setSession }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,8 +20,8 @@ const Login = ({ onRegisterClick }) => {
 
       if (error) throw error;
 
-      console.log('Login successful:', data);
-      // Handle successful login here
+      // Update session after successful login
+      setSession(data.session);
       
     } catch (err) {
       setError(err.message || 'An error occurred during login');
