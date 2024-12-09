@@ -4,19 +4,18 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Chat from './components/Chat';
 import Statistics from './components/Statistics';
+import Profile from './components/Profile';
 
 function App() {
   const [session, setSession] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
-  const [currentView, setCurrentView] = useState('chat'); // 'chat' or 'stats'
+  const [currentView, setCurrentView] = useState('chat'); // 'chat', 'stats', or 'profile'
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -44,9 +43,25 @@ function App() {
               Statistics
             </button>
           </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setCurrentView('profile')}
+              className={`px-4 py-2 rounded-lg ${currentView === 'profile' ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
+            >
+              Profile
+            </button>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="px-4 py-2 rounded-lg text-red-500 hover:bg-red-50"
+            >
+              Sign Out
+            </button>
+          </div>
         </nav>
 
-        {currentView === 'chat' ? <Chat /> : <Statistics />}
+        {currentView === 'chat' && <Chat />}
+        {currentView === 'stats' && <Statistics />}
+        {currentView === 'profile' && <Profile session={session} />}
       </div>
     );
   }
