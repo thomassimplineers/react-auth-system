@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { Auth } from '@supabase/ui-react';
+import { Button, IconButton } from '@supabase/ui-react';
 import Chat from './components/Chat';
 import Statistics from './components/Statistics';
 import Profile from './components/Profile';
@@ -31,11 +31,23 @@ function App() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Welcome Back
           </h2>
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            providers={['google', 'github']}
-          />
+          <Auth.UserContextProvider supabaseClient={supabase}>
+            <Auth 
+              supabaseClient={supabase}
+              providers={['google', 'github']}
+              appearance={{
+                theme: 'light',
+                variables: {
+                  default: {
+                    colors: {
+                      brand: '#404040',
+                      brandAccent: '#52525b'
+                    }
+                  }
+                }
+              }}
+            />
+          </Auth.UserContextProvider>
         </div>
       </div>
     );
@@ -44,31 +56,35 @@ function App() {
     <div className="h-screen flex flex-col bg-gray-50">
       <nav className="bg-white shadow-sm p-4 flex justify-between items-center">
         <div className="flex space-x-4">
-          <button
+          <Button
             onClick={() => setCurrentView('chat')}
-            className={`px-4 py-2 rounded-lg ${currentView === 'chat' ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
+            type={currentView === 'chat' ? 'primary' : 'default'}
+            size="small"
           >
             Chat
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setCurrentView('stats')}
-            className={`px-4 py-2 rounded-lg ${currentView === 'stats' ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
+            type={currentView === 'stats' ? 'primary' : 'default'}
+            size="small"
           >
             Statistics
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setCurrentView('profile')}
-            className={`px-4 py-2 rounded-lg ${currentView === 'profile' ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
+            type={currentView === 'profile' ? 'primary' : 'default'}
+            size="small"
           >
             Profile
-          </button>
+          </Button>
         </div>
-        <button
+        <Button
           onClick={() => supabase.auth.signOut()}
-          className="px-4 py-2 rounded-lg text-red-500 hover:bg-red-50"
+          type="danger"
+          size="small"
         >
           Sign Out
-        </button>
+        </Button>
       </nav>
 
       {currentView === 'chat' && <Chat />}
