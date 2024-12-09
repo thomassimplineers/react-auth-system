@@ -8,29 +8,47 @@ const Statistics = () => {
 
   useEffect(() => {
     fetchStats();
+
+    // Prenumerera på uppdateringar
+    const subscription = supabase
+      .channel('message_stats_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'message_stats' }, 
+        payload => {
+          // Uppdatera stats när de ändras
+          if (payload.new) {
+            setStats({
+              totalMessages: payload.new.total_messages,
+              messagesPerDay: parseFloat(payload.new.messages_per_day).toFixed(2),
+              lastMessageTime: new Date(payload.new.last_message_time).toLocaleString()
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('messages')
-        .select('created_at');
+        .from('message_stats')
+        .select('*')
+        .single();
 
       if (error) throw error;
 
-      // Calculate basic statistics
-      const stats = {
-        totalMessages: data.length,
-        messagesPerDay: data.length > 0 ? 
-          Math.round(data.length / ((Date.now() - new Date(data[0].created_at).getTime()) / (1000 * 60 * 60 * 24))) : 
-          0,
-        lastMessageTime: data.length > 0 ? 
-          new Date(data[data.length - 1].created_at).toLocaleString() : 
-          'No messages'
-      };
-
-      setStats(stats);
+      if (data) {
+        setStats({
+          totalMessages: data.total_messages,
+          messagesPerDay: parseFloat(data.messages_per_day).toFixed(2),
+          lastMessageTime: new Date(data.last_message_time).toLocaleString()
+        });
+      }
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -39,6 +57,7 @@ const Statistics = () => {
   };
 
   if (loading) return <div>Loading statistics...</div>;
+  if (!stats) return <div>No statistics available</div>;
 
   const columns = [
     { Header: 'Metric', accessor: 'metric' },
@@ -54,9 +73,14 @@ const Statistics = () => {
   return (
     <div className="p-4">
       <Card>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Chat Statistics</h2>
+        </div>
         <Table
           data={data}
           columns={columns}
+          borderless
+          highlightOnHover
           className="w-full"
         />
       </Card>
