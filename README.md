@@ -1,100 +1,82 @@
-# React Authentication & Chat System
+# React Auth System with Supabase UI
 
-A modern real-time chat application built with React, Supabase, and Tailwind CSS. This application provides a secure and interactive platform for real-time communication with features like user authentication, thread-based messaging, and file sharing.
+A modern authentication system built with React, Tailwind CSS, and Supabase UI.
 
 ## Features
 
-### Authentication
-- User registration and login
-- Profile management with avatars
-- Secure authentication via Supabase
-- Password reset functionality
-- Email verification
+- Modern UI with Supabase UI components
+- Social login support (Google, GitHub)
+- Email/Password authentication
+- Protected routes
+- Error handling with toast notifications
+- Loading states
+- Responsive design
 
-### Chat Functionality
-- Real-time messaging
-- Thread-based conversations
-- Image sharing capabilities
-- User online/offline status
-- Message timestamps
-- Real-time typing indicators
+## Setup
 
-### UI/UX
-- Modern, responsive design
-- Thread management
-- User presence indicators
-- Image upload and preview
-- Error handling and loading states
-- Clean and intuitive interface
-
-## Tech Stack
-- React (Frontend Framework)
-- Supabase (Backend & Authentication)
-- Tailwind CSS (Styling)
-- Real-time subscriptions
-- Vercel (Hosting & Deployment)
-- PostgreSQL (Database via Supabase)
-
-## Setup & Installation
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Set up environment variables:
-   ```env
-   REACT_APP_SUPABASE_URL=your_supabase_url
-   REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+1. Install dependencies:
+   ```bash
+   npm install
    ```
-4. Run the development server: `npm start`
 
-## Supabase Setup Required
-### Authentication Configuration
-- Enable Email authentication
-- Configure auth redirects
-- Set up email templates
+2. Environment variables are already configured with:
+   ```
+   REACT_APP_SUPABASE_URL=https://ebwvhbxlmfcytfqzzejb.supabase.co
+   REACT_APP_SUPABASE_ANON_KEY=[your-existing-key]
+   ```
 
-### Database Tables
-- `messages` (Chat messages)
-- `threads` (Conversation threads)
-- `profiles` (User profiles with avatars)
-- `user_status` (Online/offline tracking)
+## Development
 
-### Storage Buckets
-- `avatars` (User profile pictures)
-- `chat-images` (Shared images in chat)
-
-## Environment Setup
-### Development
 ```bash
-npm install    # Install dependencies
-npm start      # Start development server
-npm run build  # Create production build
+npm start
 ```
 
-### Production Deployment
-1. Connect GitHub repository to Vercel
-2. Configure environment variables in Vercel
-3. Deploy application
+## Social Login Setup
 
-## Deployment
-Currently deployed on Vercel at [your-url-here]
+### Google Setup:
+1. Go to Supabase Dashboard > Authentication > Providers
+2. Enable Google
+3. Configure OAuth in Google Cloud Console:
+   - Create project if needed
+   - Enable Google+ API
+   - Set up OAuth consent screen
+   - Create credentials
+   - Add authorized redirect URI from Supabase
+   - Copy Client ID and Secret to Supabase
 
-## Security Features
-- Secure authentication flow
-- Protected API endpoints
-- Row Level Security in Supabase
-- Secure file upload handling
+### GitHub Setup:
+1. Go to Supabase Dashboard > Authentication > Providers
+2. Enable GitHub
+3. In GitHub:
+   - Go to Settings > Developer settings
+   - Create OAuth App
+   - Add callback URL from Supabase
+   - Copy Client ID and Secret to Supabase
 
-## Future Improvements
-- Mobile responsiveness enhancement
-- Dark mode support
-- Message reactions
-- File attachments
-- Voice messages
-- Group chat functionality
-- Message search
-- Admin dashboard
+## Error Handling
 
-## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+The app includes:
+- Error boundaries for React errors
+- Toast notifications for auth events
+- Loading states for async operations
+
+## File Structure
+
+```
+src/
+  ├── components/
+  │   ├── Auth/
+  │   │   ├── LoginForm.jsx
+  │   │   ├── SignUpForm.jsx
+  │   │   └── ProtectedRoute.jsx
+  │   └── ErrorBoundary.jsx
+  ├── contexts/
+  │   └── AuthContext.jsx
+  ├── lib/
+  │   └── supabaseClient.js
+  └── App.jsx
+```
 
 ## License
-This project is open source and available under the MIT License.
+
+MIT
