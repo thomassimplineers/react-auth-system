@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Card, Input, Button, IconSend, IconMessage } from '@supabase/ui-react';
+import { Card, Input, Button } from '@supabase/ui-react';
+import { MessageSquare as IconMessage, Send as IconSend } from 'lucide-react';
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
@@ -67,7 +68,7 @@ const Chat = () => {
         <Button
           type="primary"
           htmlType="submit"
-          icon={<IconSend />}
+          iconLeft={<IconSend size={16} />}
         >
           Send
         </Button>

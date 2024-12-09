@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Card, Input, Button, IconUser } from '@supabase/ui-react';
+import { Card, Input, Button } from '@supabase/ui-react';
+import { User as IconUser } from 'lucide-react';
 
 const Profile = ({ session }) => {
   const [loading, setLoading] = useState(false);
@@ -66,7 +67,7 @@ const Profile = ({ session }) => {
               label="Email"
               value={session.user.email}
               disabled
-              icon={<IconUser />}
+              iconLeft={<IconUser size={16} />}
             />
           </div>
 
@@ -75,7 +76,7 @@ const Profile = ({ session }) => {
               label="Username"
               value={username || ''}
               onChange={(e) => setUsername(e.target.value)}
-              icon={<IconUser />}
+              iconLeft={<IconUser size={16} />}
             />
           </div>
 
