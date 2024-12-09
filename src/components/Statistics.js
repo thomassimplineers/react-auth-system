@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Card, Table } from '@supabase/ui-react';
-import { BarChart2 as IconStats } from 'lucide-react';
+import { BarChart2 } from 'lucide-react';
 
 const Statistics = () => {
   const [stats, setStats] = useState(null);
@@ -57,50 +56,49 @@ const Statistics = () => {
 
   if (loading) return (
     <div className="p-4">
-      <Card>
-        <div className="flex items-center justify-center p-4">
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex items-center justify-center">
           Loading statistics...
         </div>
-      </Card>
+      </div>
     </div>
   );
 
   if (!stats) return (
     <div className="p-4">
-      <Card>
-        <div className="flex items-center justify-center p-4">
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex items-center justify-center">
           No statistics available
         </div>
-      </Card>
+      </div>
     </div>
   );
 
-  const columns = [
-    { Header: 'Metric', accessor: 'metric' },
-    { Header: 'Value', accessor: 'value' }
-  ];
-
-  const data = [
-    { metric: 'Total Messages', value: stats.totalMessages },
-    { metric: 'Messages per Day', value: stats.messagesPerDay },
-    { metric: 'Last Message', value: stats.lastMessageTime }
-  ];
-
   return (
     <div className="p-4">
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
-          <IconStats size={24} />
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <BarChart2 size={24} />
           <h2 className="text-xl font-bold">Chat Statistics</h2>
         </div>
-        <Table
-          data={data}
-          columns={columns}
-          borderless
-          highlightOnHover
-          className="w-full"
-        />
-      </Card>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="font-medium">Total Messages</div>
+            <div>{stats.totalMessages}</div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="font-medium">Messages per Day</div>
+            <div>{stats.messagesPerDay}</div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="font-medium">Last Message</div>
+            <div>{stats.lastMessageTime}</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

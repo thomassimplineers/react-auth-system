@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Card, Input, Button } from '@supabase/ui-react';
-import { MessageSquare as IconMessage, Send as IconSend } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
@@ -45,33 +44,33 @@ const Chat = () => {
 
   return (
     <div className="flex flex-col h-full p-4">
-      <Card className="flex-grow overflow-y-auto mb-4">
+      <div className="flex-grow overflow-y-auto mb-4 bg-white shadow rounded-lg p-6">
         <div className="space-y-4">
           {messages.map((message) => (
             <div key={message.id} className="flex items-start space-x-2">
-              <IconMessage />
-              <div className="bg-gray-100 rounded-lg p-3">
+              <MessageSquare size={20} className="text-gray-500" />
+              <div className="bg-gray-100 rounded-lg p-3 flex-grow">
                 <p>{message.content}</p>
               </div>
             </div>
           ))}
         </div>
-      </Card>
+      </div>
       
       <form onSubmit={sendMessage} className="flex space-x-2">
-        <Input
-          className="flex-grow"
+        <input
+          className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           placeholder="Type a message..."
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
         />
-        <Button
-          type="primary"
-          htmlType="submit"
-          iconLeft={<IconSend size={16} />}
+        <button
+          type="submit"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
+          <Send size={16} className="mr-2" />
           Send
-        </Button>
+        </button>
       </form>
     </div>
   );
