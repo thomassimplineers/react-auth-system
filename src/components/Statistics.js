@@ -15,8 +15,9 @@ const Statistics = () => {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const response = await fetch('http://localhost:5001/api/value-picks');
+        const response = await fetch('/api/value-picks');
         const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch statistics');
         setStats({
           ALL: data,
           // We'll add position filtering later
