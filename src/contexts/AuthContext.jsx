@@ -11,7 +11,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
     const getSession = async () => {
       try {
         const { data: { session }, error } = await supabaseClient.auth.getSession()
@@ -26,7 +25,6 @@ export function AuthProvider({ children }) {
 
     getSession()
 
-    // Listen for changes
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) toast.success('Successfully authenticated!')
