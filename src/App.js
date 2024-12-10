@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './lib/supabase';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -10,6 +10,35 @@ import Profile from './components/Profile';
 function App() {
   const [session, setSession] = useState(null);
   const [currentView, setCurrentView] = useState('chat');
+  const [lastUpdateAttempt, setLastUpdateAttempt] = useState(0);
+  const [updateError, setUpdateError] = useState(false);
+
+  const updateUserStatus = useCallback(async (userId, isOnline) => {
+    if (!userId) return;
+
+    // Kontrollera om tillräcklig tid har gått sedan senaste försök (minst 10 sekunder)
+    const now = Date.now();
+    if (now - lastUpdateAttempt < 10000) return;
+    
+    // Uppdatera senaste försökstidpunkt
+    setLastUpdateAttempt(now);
+
+    try {
+      const { error } = await supabase
+        .from('user_status')
+        .upsert({
+          id: userId,
+          is_online: isOnline,
+          last_seen: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+      setUpdateError(false);
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      setUpdateError(true);
+    }
+  }, [lastUpdateAttempt]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,14 +57,14 @@ function App() {
       }
     });
 
-    // Set up interval to update last_seen
+    // Uppdatera status var 5:e minut istället för var 30:e sekund
     const interval = setInterval(() => {
-      if (session?.user) {
+      if (session?.user && !updateError) {
         updateUserStatus(session.user.id, true);
       }
-    }, 30000); // Update every 30 seconds
+    }, 300000); // 5 minuter
 
-    // Handle page visibility change
+    // Hantera page visibility
     const handleVisibilityChange = () => {
       if (session?.user) {
         updateUserStatus(session.user.id, !document.hidden);
@@ -43,7 +72,7 @@ function App() {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Clean up
+    // Cleanup
     return () => {
       subscription.unsubscribe();
       clearInterval(interval);
@@ -52,21 +81,7 @@ function App() {
         updateUserStatus(session.user.id, false);
       }
     };
-  }, [session]);
-
-  const updateUserStatus = async (userId, isOnline) => {
-    if (!userId) return;
-
-    const { error } = await supabase
-      .from('user_status')
-      .upsert({
-        id: userId,
-        is_online: isOnline,
-        last_seen: new Date().toISOString(),
-      });
-
-    if (error) console.error('Error updating user status:', error);
-  };
+  }, [session, updateError, updateUserStatus]);
 
   if (!session)
     return (
