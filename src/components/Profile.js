@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { User } from 'lucide-react';
 
 const Profile = ({ session }) => {
   const [loading, setLoading] = useState(false);
-  const [username, setUsername] = useState('');
+  const [nickname, setNickname] = useState('');
   const [avatar_url, setAvatarUrl] = useState('');
 
   useEffect(() => {
@@ -15,15 +14,17 @@ const Profile = ({ session }) => {
     try {
       setLoading(true);
       const { user } = session;
+
       const { data, error } = await supabase
         .from('profiles')
-        .select('username, avatar_url')
+        .select('nickname, avatar_url')
         .eq('id', user.id)
         .single();
 
       if (error) throw error;
+      
       if (data) {
-        setUsername(data.username);
+        setNickname(data.nickname);
         setAvatarUrl(data.avatar_url);
       }
     } catch (error) {
@@ -38,9 +39,10 @@ const Profile = ({ session }) => {
     try {
       setLoading(true);
       const { user } = session;
+
       const updates = {
         id: user.id,
-        username,
+        nickname,
         avatar_url,
         updated_at: new Date(),
       };
@@ -62,12 +64,9 @@ const Profile = ({ session }) => {
       <div className="bg-white shadow rounded-lg p-6">
         <form onSubmit={updateProfile} className="space-y-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <User size={16} />
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-            </div>
+            <label className="block text-sm font-medium text-gray-700">Email</label>
             <input
-              type="email"
+              type="text"
               value={session.user.email}
               disabled
               className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
@@ -75,20 +74,17 @@ const Profile = ({ session }) => {
           </div>
 
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <User size={16} />
-              <label className="block text-sm font-medium text-gray-700">Username</label>
-            </div>
+            <label className="block text-sm font-medium text-gray-700">Nickname</label>
             <input
               type="text"
-              value={username || ''}
-              onChange={(e) => setUsername(e.target.value)}
+              value={nickname || ''}
+              onChange={(e) => setNickname(e.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Avatar URL</label>
+            <label className="block text-sm font-medium text-gray-700">Avatar URL</label>
             <input
               type="url"
               value={avatar_url || ''}
