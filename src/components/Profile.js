@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { Upload } from 'lucide-react';
 
 const Profile = ({ session }) => {
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [profile, setProfile] = useState({
     nickname: '',
     avatar_url: ''
@@ -10,13 +12,11 @@ const Profile = ({ session }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
 
-  // Load profile once
   useEffect(() => {
     if (!session?.user?.id) return;
     loadProfile();
   }, [session?.user?.id]);
 
-  // Subscribe to real-time online status updates
   useEffect(() => {
     const subscription = supabase
       .channel('online-users')
@@ -28,7 +28,6 @@ const Profile = ({ session }) => {
       )
       .subscribe();
 
-    // Initial fetch
     fetchOnlineUsers();
 
     return () => {
@@ -73,6 +72,56 @@ const Profile = ({ session }) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const uploadAvatar = async (event) => {
+    try {
+      setUploading(true);
+      setStatusMessage({ type: '', text: '' });
+
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('You must select an image to upload.');
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${session.user.id}-${Math.random()}.${fileExt}`;
+
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl }, error: urlError } = await supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      if (urlError) throw urlError;
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', session.user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      setStatusMessage({
+        type: 'success',
+        text: 'Avatar updated successfully!'
+      });
+    } catch (error) {
+      setStatusMessage({
+        type: 'error',
+        text: error.message
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -158,33 +207,45 @@ const Profile = ({ session }) => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Avatar URL</label>
-                <input
-                  type="url"
-                  name="avatar_url"
-                  value={profile.avatar_url || ''}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-
-              {profile.avatar_url && (
-                <div className="mt-2 flex justify-center">
-                  <img
-                    src={profile.avatar_url}
-                    alt="Avatar"
-                    className="w-20 h-20 rounded-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/80';
-                      setStatusMessage({
-                        type: 'error',
-                        text: 'Could not load avatar image'
-                      });
-                    }}
-                  />
+              <div className="mt-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Avatar Image</label>
+                <div className="flex items-center space-x-4">
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="Avatar"
+                      className="w-20 h-20 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/80';
+                        setStatusMessage({
+                          type: 'error',
+                          text: 'Could not load avatar image'
+                        });
+                      }}
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                      <Upload className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={uploadAvatar}
+                      className="hidden"
+                      id="avatar-upload"
+                      disabled={uploading}
+                    />
+                    <label
+                      htmlFor="avatar-upload"
+                      className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      {uploading ? 'Uploading...' : 'Change Avatar'}
+                    </label>
+                  </div>
                 </div>
-              )}
+              </div>
 
               <button
                 type="submit"
