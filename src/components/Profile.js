@@ -86,7 +86,8 @@ const Profile = ({ session }) => {
 
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
-      const filePath = `${session.user.id}-${Math.random()}.${fileExt}`;
+      const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
 
       // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -171,8 +172,8 @@ const Profile = ({ session }) => {
   };
 
   return (
-    <div className="max-w-xl mx-auto p-4">
-      <div className="bg-white shadow rounded-lg p-6">
+    <div className="flex flex-col h-full p-4">
+      <div className="flex-grow overflow-y-auto mb-4 bg-white shadow rounded-lg p-6">
         {statusMessage.text && (
           <div
             className={`mb-4 p-3 rounded border ${statusMessage.type === 'success' 
@@ -208,7 +209,7 @@ const Profile = ({ session }) => {
               </div>
 
               <div className="mt-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Avatar Image</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Picture</label>
                 <div className="flex items-center space-x-4">
                   {profile.avatar_url ? (
                     <img
@@ -219,7 +220,7 @@ const Profile = ({ session }) => {
                         e.target.src = 'https://via.placeholder.com/80';
                         setStatusMessage({
                           type: 'error',
-                          text: 'Could not load avatar image'
+                          text: 'Could not load profile picture'
                         });
                       }}
                     />
@@ -239,9 +240,9 @@ const Profile = ({ session }) => {
                     />
                     <label
                       htmlFor="avatar-upload"
-                      className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="cursor-pointer inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
-                      {uploading ? 'Uploading...' : 'Change Avatar'}
+                      {uploading ? 'Uploading...' : 'Upload Picture'}
                     </label>
                   </div>
                 </div>
