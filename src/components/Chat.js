@@ -10,6 +10,7 @@ const Chat = ({ session }) => {
   const [replyContent, setReplyContent] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [threads, setThreads] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchThreads();
@@ -43,56 +44,83 @@ const Chat = ({ session }) => {
   }, [selectedThread]);
 
   const fetchThreads = async () => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .is('thread_id', null)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .is('thread_id', null)
+        .order('created_at', { ascending: false });
 
-    if (error) console.error('Error fetching threads:', error);
-    else setThreads(data || []);
+      if (error) throw error;
+      setThreads(data || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching threads:', err);
+      setError('Failed to fetch threads');
+    }
   };
 
   const fetchOnlineUsers = async () => {
-    const { data, error } = await supabase
-      .from('user_status')
-      .select(`
-        id,
-        is_online,
-        last_seen,
-        profiles:id (username)
-      `)
-      .eq('is_online', true);
+    try {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username');
 
-    if (error) console.error('Error fetching online users:', error);
-    else setOnlineUsers(data || []);
-  };
+      if (profilesError) throw profilesError;
 
-  const fetchThreadMessages = async (threadId) => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('thread_id', threadId)
-      .order('created_at', { ascending: true });
+      const { data: status, error: statusError } = await supabase
+        .from('user_status')
+        .select('*')
+        .eq('is_online', true);
 
-    if (error) console.error('Error fetching thread messages:', error);
-    else setThreadMessages(data || []);
+      if (statusError) throw statusError;
+
+      const onlineUsersWithProfiles = status.map(user => {
+        const profile = profiles.find(p => p.id === user.id);
+        return {
+          ...user,
+          username: profile?.username || 'Anonymous User'
+        };
+      });
+
+      setOnlineUsers(onlineUsersWithProfiles);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching online users:', err);
+      setError('Failed to fetch online users');
+    }
   };
 
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const { data, error } = await supabase
-      .from('messages')
-      .insert([{ content: newMessage, user_id: session.user.id }])
-      .select()
-      .single();
+    try {
+      console.log('Sending message with user_id:', session.user.id); // Debug log
+      
+      const messageData = {
+        content: newMessage,
+        user_id: session.user.id
+      };
+      
+      console.log('Message data:', messageData); // Debug log
 
-    if (error) console.error('Error sending message:', error);
-    else {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert([messageData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log('Message sent successfully:', data); // Debug log
+      
       setNewMessage('');
       setThreads(current => [data, ...current]);
+      setError(null);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Failed to send message');
     }
   };
 
@@ -100,27 +128,58 @@ const Chat = ({ session }) => {
     e.preventDefault();
     if (!replyContent.trim() || !selectedThread) return;
 
-    const { error } = await supabase
-      .from('messages')
-      .insert([{ 
-        content: replyContent,
-        thread_id: selectedThread.id,
-        user_id: session.user.id
-      }]);
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .insert([{ 
+          content: replyContent,
+          thread_id: selectedThread.id,
+          user_id: session.user.id
+        }]);
 
-    if (error) console.error('Error sending reply:', error);
-    else setReplyContent('');
+      if (error) throw error;
+      
+      setReplyContent('');
+      setError(null);
+    } catch (err) {
+      console.error('Error sending reply:', err);
+      setError('Failed to send reply');
+    }
   };
 
   const openThread = async (thread) => {
-    setSelectedThread(thread);
-    await fetchThreadMessages(thread.id);
+    try {
+      setSelectedThread(thread);
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('thread_id', thread.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setThreadMessages(data || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching thread messages:', err);
+      setError('Failed to load thread messages');
+    }
   };
 
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleString();
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full p-4 gap-4">
@@ -231,7 +290,7 @@ const Chat = ({ session }) => {
           {onlineUsers.map((user) => (
             <div key={user.id} className="flex items-center space-x-2">
               <Circle size={8} className="text-green-500 fill-current" />
-              <span>{user.profiles?.username || 'Anonymous User'}</span>
+              <span>{user.username}</span>
             </div>
           ))}
         </div>
