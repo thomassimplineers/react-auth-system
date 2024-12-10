@@ -14,16 +14,59 @@ function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) {
+        updateUserStatus(session.user.id, true);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        updateUserStatus(session.user.id, true);
+      }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Set up interval to update last_seen
+    const interval = setInterval(() => {
+      if (session?.user) {
+        updateUserStatus(session.user.id, true);
+      }
+    }, 30000); // Update every 30 seconds
+
+    // Handle page visibility change
+    const handleVisibilityChange = () => {
+      if (session?.user) {
+        updateUserStatus(session.user.id, !document.hidden);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Clean up
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (session?.user) {
+        updateUserStatus(session.user.id, false);
+      }
+    };
+  }, [session]);
+
+  const updateUserStatus = async (userId, isOnline) => {
+    if (!userId) return;
+
+    const { error } = await supabase
+      .from('user_status')
+      .upsert({
+        id: userId,
+        is_online: isOnline,
+        last_seen: new Date().toISOString(),
+      });
+
+    if (error) console.error('Error updating user status:', error);
+  };
 
   if (!session)
     return (
@@ -79,7 +122,10 @@ function App() {
           </button>
         </div>
         <button
-          onClick={() => supabase.auth.signOut()}
+          onClick={() => {
+            updateUserStatus(session.user.id, false);
+            supabase.auth.signOut();
+          }}
           className="inline-flex items-center px-4 py-2 rounded-lg text-red-600 hover:bg-red-50"
         >
           <LogOut size={16} className="mr-2" />
@@ -87,7 +133,7 @@ function App() {
         </button>
       </nav>
 
-      {currentView === 'chat' && <Chat />}
+      {currentView === 'chat' && <Chat session={session} />}
       {currentView === 'stats' && <Statistics />}
       {currentView === 'profile' && <Profile session={session} />}
     </div>
