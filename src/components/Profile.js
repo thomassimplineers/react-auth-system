@@ -3,40 +3,63 @@ import { supabase } from '../lib/supabase';
 
 const Profile = ({ session }) => {
   const [loading, setLoading] = useState(false);
-  const [nickname, setNickname] = useState('');
-  const [avatar_url, setAvatarUrl] = useState('');
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [profile, setProfile] = useState({
+    nickname: '',
+    avatar_url: ''
+  });
+  const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    if (session?.user?.id) {
-      getProfile();
-    }
-  }, [session?.user?.id]);
+    let isMounted = true;
 
-  const getProfile = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        console.log('Loading profile for user:', session.user.id);
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('nickname, avatar_url')
-        .eq('id', session.user.id)
-        .single();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('nickname, avatar_url')
+          .eq('id', session.user.id)
+          .single();
 
-      if (error) throw error;
-      
-      if (data) {
-        setNickname(data.nickname || '');
-        setAvatarUrl(data.avatar_url || '');
+        console.log('Profile data:', data);
+        console.log('Profile error:', error);
+
+        if (error) throw error;
+        if (data && isMounted) {
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        if (isMounted) {
+          setStatusMessage({
+            type: 'error',
+            text: 'Could not load profile'
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-      setError('Could not load profile');
-    } finally {
-      setLoading(false);
+    };
+
+    if (session?.user?.id) {
+      loadProfile();
     }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const updateProfile = async (e) => {
@@ -45,26 +68,37 @@ const Profile = ({ session }) => {
 
     try {
       setLoading(true);
-      setError(null);
-      setSuccess(null);
-
-      const updates = {
+      console.log('Updating profile with:', {
         id: session.user.id,
-        nickname,
-        avatar_url,
-        updated_at: new Date().toISOString()
-      };
+        ...profile
+      });
 
       const { error } = await supabase
         .from('profiles')
-        .upsert(updates);
+        .upsert({
+          id: session.user.id,
+          ...profile,
+          updated_at: new Date().toISOString()
+        });
 
       if (error) throw error;
-      
-      setSuccess('Profile updated successfully!');
+
+      setStatusMessage({
+        type: 'success',
+        text: 'Profile updated successfully!'
+      });
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setStatusMessage({ type: '', text: '' });
+      }, 3000);
+
     } catch (error) {
       console.error('Error updating profile:', error);
-      setError('Failed to update profile');
+      setStatusMessage({
+        type: 'error',
+        text: 'Failed to update profile'
+      });
     } finally {
       setLoading(false);
     }
@@ -73,15 +107,13 @@ const Profile = ({ session }) => {
   return (
     <div className="max-w-xl mx-auto p-4">
       <div className="bg-white shadow rounded-lg p-6">
-        {error && (
-          <div className="mb-4 p-3 rounded bg-red-100 border border-red-400 text-red-700">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="mb-4 p-3 rounded bg-green-100 border border-green-400 text-green-700">
-            {success}
+        {statusMessage.text && (
+          <div
+            className={`mb-4 p-3 rounded border ${statusMessage.type === 'success' 
+              ? 'bg-green-100 border-green-400 text-green-700' 
+              : 'bg-red-100 border-red-400 text-red-700'}`}
+          >
+            {statusMessage.text}
           </div>
         )}
 
@@ -92,7 +124,7 @@ const Profile = ({ session }) => {
               type="text"
               value={session.user.email}
               disabled
-              className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm"
             />
           </div>
 
@@ -100,8 +132,9 @@ const Profile = ({ session }) => {
             <label className="block text-sm font-medium text-gray-700">Nickname</label>
             <input
               type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
+              name="nickname"
+              value={profile.nickname}
+              onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -110,21 +143,25 @@ const Profile = ({ session }) => {
             <label className="block text-sm font-medium text-gray-700">Avatar URL</label>
             <input
               type="url"
-              value={avatar_url}
-              onChange={(e) => setAvatarUrl(e.target.value)}
+              name="avatar_url"
+              value={profile.avatar_url || ''}
+              onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
 
-          {avatar_url && (
-            <div className="mt-2">
+          {profile.avatar_url && (
+            <div className="mt-2 flex justify-center">
               <img
-                src={avatar_url}
+                src={profile.avatar_url}
                 alt="Avatar"
                 className="w-20 h-20 rounded-full object-cover"
                 onError={(e) => {
                   e.target.src = 'https://via.placeholder.com/80';
-                  setError('Could not load avatar image');
+                  setStatusMessage({
+                    type: 'error',
+                    text: 'Could not load avatar image'
+                  });
                 }}
               />
             </div>
