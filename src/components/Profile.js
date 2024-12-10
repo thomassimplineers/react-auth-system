@@ -1,18 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const Profile = ({ session }) => {
   const [loading, setLoading] = useState(false);
   const [nickname, setNickname] = useState('');
   const [avatar_url, setAvatarUrl] = useState('');
+  const [error, setError] = useState(null);
+  const lastFetchRef = useRef(0);
+  const retryTimeoutRef = useRef(null);
 
   useEffect(() => {
     getProfile();
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
   }, [session]);
 
-  const getProfile = async () => {
+  const getProfile = async (retryCount = 0) => {
+    const now = Date.now();
+    if (now - lastFetchRef.current < 5000) { // 5 seconds cooldown
+      return;
+    }
+    lastFetchRef.current = now;
+
     try {
       setLoading(true);
+      setError(null);
       const { user } = session;
 
       const { data, error } = await supabase
@@ -21,14 +36,26 @@ const Profile = ({ session }) => {
         .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If we get a resource error and haven't retried too many times, try again
+        if (error.message.includes('ERR_INSUFFICIENT_RESOURCES') && retryCount < 3) {
+          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff
+          retryTimeoutRef.current = setTimeout(() => {
+            getProfile(retryCount + 1);
+          }, retryDelay);
+          return;
+        }
+        throw error;
+      }
       
       if (data) {
         setNickname(data.nickname);
         setAvatarUrl(data.avatar_url);
       }
+      setError(null);
     } catch (error) {
       console.error('Error loading profile:', error);
+      setError('Failed to load profile. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -36,8 +63,11 @@ const Profile = ({ session }) => {
 
   const updateProfile = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     try {
       setLoading(true);
+      setError(null);
       const { user } = session;
 
       const updates = {
@@ -52,8 +82,10 @@ const Profile = ({ session }) => {
         .upsert(updates);
 
       if (error) throw error;
+      setError('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
+      setError('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -62,6 +94,12 @@ const Profile = ({ session }) => {
   return (
     <div className="max-w-xl mx-auto p-4">
       <div className="bg-white shadow rounded-lg p-6">
+        {error && (
+          <div className={`mb-4 p-4 rounded ${error.includes('successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {error}
+          </div>
+        )}
+        
         <form onSubmit={updateProfile} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
