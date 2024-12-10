@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 const Profile = ({ session }) => {
@@ -6,56 +6,34 @@ const Profile = ({ session }) => {
   const [nickname, setNickname] = useState('');
   const [avatar_url, setAvatarUrl] = useState('');
   const [error, setError] = useState(null);
-  const lastFetchRef = useRef(0);
-  const retryTimeoutRef = useRef(null);
+  const [success, setSuccess] = useState(null);
 
   useEffect(() => {
-    getProfile();
-    return () => {
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, [session]);
-
-  const getProfile = async (retryCount = 0) => {
-    const now = Date.now();
-    if (now - lastFetchRef.current < 5000) { // 5 seconds cooldown
-      return;
+    if (session?.user?.id) {
+      getProfile();
     }
-    lastFetchRef.current = now;
+  }, [session?.user?.id]);
 
+  const getProfile = async () => {
     try {
       setLoading(true);
       setError(null);
-      const { user } = session;
 
       const { data, error } = await supabase
         .from('profiles')
         .select('nickname, avatar_url')
-        .eq('id', user.id)
+        .eq('id', session.user.id)
         .single();
 
-      if (error) {
-        // If we get a resource error and haven't retried too many times, try again
-        if (error.message.includes('ERR_INSUFFICIENT_RESOURCES') && retryCount < 3) {
-          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff
-          retryTimeoutRef.current = setTimeout(() => {
-            getProfile(retryCount + 1);
-          }, retryDelay);
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
       
       if (data) {
-        setNickname(data.nickname);
-        setAvatarUrl(data.avatar_url);
+        setNickname(data.nickname || '');
+        setAvatarUrl(data.avatar_url || '');
       }
-      setError(null);
     } catch (error) {
       console.error('Error loading profile:', error);
-      setError('Failed to load profile. Please try again later.');
+      setError('Could not load profile');
     } finally {
       setLoading(false);
     }
@@ -68,13 +46,13 @@ const Profile = ({ session }) => {
     try {
       setLoading(true);
       setError(null);
-      const { user } = session;
+      setSuccess(null);
 
       const updates = {
-        id: user.id,
+        id: session.user.id,
         nickname,
         avatar_url,
-        updated_at: new Date(),
+        updated_at: new Date().toISOString()
       };
 
       const { error } = await supabase
@@ -82,10 +60,11 @@ const Profile = ({ session }) => {
         .upsert(updates);
 
       if (error) throw error;
-      setError('Profile updated successfully!');
+      
+      setSuccess('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      setError('Failed to update profile. Please try again.');
+      setError('Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -95,11 +74,17 @@ const Profile = ({ session }) => {
     <div className="max-w-xl mx-auto p-4">
       <div className="bg-white shadow rounded-lg p-6">
         {error && (
-          <div className={`mb-4 p-4 rounded ${error.includes('successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+          <div className="mb-4 p-3 rounded bg-red-100 border border-red-400 text-red-700">
             {error}
           </div>
         )}
         
+        {success && (
+          <div className="mb-4 p-3 rounded bg-green-100 border border-green-400 text-green-700">
+            {success}
+          </div>
+        )}
+
         <form onSubmit={updateProfile} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
@@ -115,7 +100,7 @@ const Profile = ({ session }) => {
             <label className="block text-sm font-medium text-gray-700">Nickname</label>
             <input
               type="text"
-              value={nickname || ''}
+              value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
@@ -125,11 +110,25 @@ const Profile = ({ session }) => {
             <label className="block text-sm font-medium text-gray-700">Avatar URL</label>
             <input
               type="url"
-              value={avatar_url || ''}
+              value={avatar_url}
               onChange={(e) => setAvatarUrl(e.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
+
+          {avatar_url && (
+            <div className="mt-2">
+              <img
+                src={avatar_url}
+                alt="Avatar"
+                className="w-20 h-20 rounded-full object-cover"
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/80';
+                  setError('Could not load avatar image');
+                }}
+              />
+            </div>
+          )}
 
           <button
             type="submit"
