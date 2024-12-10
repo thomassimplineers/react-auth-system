@@ -11,8 +11,10 @@ const Chat = ({ session }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [threads, setThreads] = useState([]);
   const [error, setError] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
+    fetchUserProfile();
     fetchThreads();
     fetchOnlineUsers();
 
@@ -42,6 +44,21 @@ const Chat = ({ session }) => {
       presenceSubscription.unsubscribe();
     };
   }, [selectedThread]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('nickname')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
 
   const fetchThreads = async () => {
     try {
@@ -96,14 +113,11 @@ const Chat = ({ session }) => {
     if (!newMessage.trim()) return;
 
     try {
-      console.log('Sending message with user_id:', session.user.id);
-      
       const messageData = {
         content: newMessage,
-        user_id: session.user.id
+        user_id: session.user.id,
+        sender: userProfile?.nickname || 'Anonymous'
       };
-      
-      console.log('Message data:', messageData);
 
       const { data, error } = await supabase
         .from('messages')
@@ -112,8 +126,6 @@ const Chat = ({ session }) => {
         .single();
 
       if (error) throw error;
-
-      console.log('Message sent successfully:', data);
       
       setNewMessage('');
       setThreads(current => [data, ...current]);
@@ -134,26 +146,28 @@ const Chat = ({ session }) => {
         .insert([{ 
           content: replyContent,
           thread_id: selectedThread.id,
-          user_id: session.user.id
+          user_id: session.user.id,
+          sender: userProfile?.nickname || 'Anonymous'
         }]);
 
       if (error) throw error;
       
       setReplyContent('');
       setError(null);
+      // Uppdatera trådens meddelanden
+      fetchThreadMessages(selectedThread.id);
     } catch (err) {
       console.error('Error sending reply:', err);
       setError('Failed to send reply');
     }
   };
 
-  const openThread = async (thread) => {
+  const fetchThreadMessages = async (threadId) => {
     try {
-      setSelectedThread(thread);
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .eq('thread_id', thread.id)
+        .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -163,6 +177,11 @@ const Chat = ({ session }) => {
       console.error('Error fetching thread messages:', err);
       setError('Failed to load thread messages');
     }
+  };
+
+  const openThread = async (thread) => {
+    setSelectedThread(thread);
+    await fetchThreadMessages(thread.id);
   };
 
   const formatTimestamp = (timestamp) => {
@@ -197,7 +216,10 @@ const Chat = ({ session }) => {
                 className={`p-3 rounded-lg cursor-pointer ${selectedThread?.id === thread.id ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50'}`}
               >
                 <p className="text-sm line-clamp-2">{thread.content}</p>
-                <p className="text-xs text-gray-500 mt-1">{formatTimestamp(thread.created_at)}</p>
+                <div className="mt-2 flex justify-between text-xs text-gray-500">
+                  <span>{thread.sender}</span>
+                  <span>{formatTimestamp(thread.created_at)}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -229,7 +251,9 @@ const Chat = ({ session }) => {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-medium">Thread</h3>
-                  <p className="text-sm text-gray-500">{formatTimestamp(selectedThread.created_at)}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Started by {selectedThread.sender} - {formatTimestamp(selectedThread.created_at)}
+                  </p>
                 </div>
                 <button 
                   onClick={() => setSelectedThread(null)}
@@ -248,10 +272,15 @@ const Chat = ({ session }) => {
               <div className="space-y-4 mt-4">
                 {threadMessages.map((message) => (
                   <div key={message.id} className="flex items-start space-x-2">
-                    <MessageSquare size={16} className="text-gray-500" />
-                    <div className="bg-gray-100 rounded-lg p-3 flex-grow">
-                      <p>{message.content}</p>
-                      <p className="text-xs text-gray-500 mt-1">{formatTimestamp(message.created_at)}</p>
+                    <MessageSquare size={16} className="text-gray-500 mt-1" />
+                    <div className="flex-grow">
+                      <div className="bg-gray-100 rounded-lg p-3">
+                        <p>{message.content}</p>
+                      </div>
+                      <div className="mt-1 flex justify-between text-xs text-gray-500">
+                        <span>{message.sender}</span>
+                        <span>{formatTimestamp(message.created_at)}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
