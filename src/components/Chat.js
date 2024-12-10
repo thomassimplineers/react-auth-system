@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Send, Reply, X } from 'lucide-react';
+import { MessageSquare, Send, Reply, X, Circle } from 'lucide-react';
 
-const Chat = () => {
+const Chat = ({ session }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [selectedThread, setSelectedThread] = useState(null);
   const [threadMessages, setThreadMessages] = useState([]);
   const [replyContent, setReplyContent] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState([]);
 
   useEffect(() => {
     fetchMessages();
-    const subscription = supabase
+    fetchOnlineUsers();
+
+    // Subscribe to messages
+    const messageSubscription = supabase
       .channel('messages')
       .on('INSERT', payload => {
         if (!payload.new.thread_id) {
@@ -22,8 +26,20 @@ const Chat = () => {
       })
       .subscribe();
 
+    // Subscribe to online status changes
+    const presenceSubscription = supabase
+      .channel('online-users')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'user_status' }, 
+        () => {
+          fetchOnlineUsers();
+        }
+      )
+      .subscribe();
+
     return () => {
-      subscription.unsubscribe();
+      messageSubscription.unsubscribe();
+      presenceSubscription.unsubscribe();
     };
   }, [selectedThread]);
 
@@ -36,6 +52,21 @@ const Chat = () => {
 
     if (error) console.error('Error fetching messages:', error);
     else setMessages(data || []);
+  };
+
+  const fetchOnlineUsers = async () => {
+    const { data, error } = await supabase
+      .from('user_status')
+      .select(`
+        id,
+        is_online,
+        last_seen,
+        profiles:id (username)
+      `)
+      .eq('is_online', true);
+
+    if (error) console.error('Error fetching online users:', error);
+    else setOnlineUsers(data || []);
   };
 
   const fetchThreadMessages = async (threadId) => {
@@ -55,7 +86,7 @@ const Chat = () => {
 
     const { error } = await supabase
       .from('messages')
-      .insert([{ content: newMessage }]);
+      .insert([{ content: newMessage, user_id: session.user.id }]);
 
     if (error) console.error('Error sending message:', error);
     else setNewMessage('');
@@ -69,7 +100,8 @@ const Chat = () => {
       .from('messages')
       .insert([{ 
         content: replyContent,
-        thread_id: selectedThread.id
+        thread_id: selectedThread.id,
+        user_id: session.user.id
       }]);
 
     if (error) console.error('Error sending reply:', error);
@@ -182,6 +214,18 @@ const Chat = () => {
           </form>
         </div>
       )}
+
+      <div className="w-64 bg-white shadow rounded-lg p-4">
+        <h3 className="font-medium mb-4">Online Users</h3>
+        <div className="space-y-2">
+          {onlineUsers.map((user) => (
+            <div key={user.id} className="flex items-center space-x-2">
+              <Circle size={8} className="text-green-500 fill-current" />
+              <span>{user.profiles?.username || 'Anonymous User'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
