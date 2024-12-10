@@ -64,7 +64,7 @@ const Chat = ({ session }) => {
     try {
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, username');
+        .select('id, nickname, avatar_url');
 
       if (profilesError) throw profilesError;
 
@@ -79,7 +79,7 @@ const Chat = ({ session }) => {
         const profile = profiles.find(p => p.id === user.id);
         return {
           ...user,
-          username: profile?.username || 'Anonymous User'
+          nickname: profile?.nickname || 'Anonymous User'
         };
       });
 
@@ -96,14 +96,14 @@ const Chat = ({ session }) => {
     if (!newMessage.trim()) return;
 
     try {
-      console.log('Sending message with user_id:', session.user.id); // Debug log
+      console.log('Sending message with user_id:', session.user.id);
       
       const messageData = {
         content: newMessage,
         user_id: session.user.id
       };
       
-      console.log('Message data:', messageData); // Debug log
+      console.log('Message data:', messageData);
 
       const { data, error } = await supabase
         .from('messages')
@@ -113,7 +113,7 @@ const Chat = ({ session }) => {
 
       if (error) throw error;
 
-      console.log('Message sent successfully:', data); // Debug log
+      console.log('Message sent successfully:', data);
       
       setNewMessage('');
       setThreads(current => [data, ...current]);
@@ -290,7 +290,7 @@ const Chat = ({ session }) => {
           {onlineUsers.map((user) => (
             <div key={user.id} className="flex items-center space-x-2">
               <Circle size={8} className="text-green-500 fill-current" />
-              <span>{user.username}</span>
+              <span>{user.nickname}</span>
             </div>
           ))}
         </div>
