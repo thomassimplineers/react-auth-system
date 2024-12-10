@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 const Profile = ({ session }) => {
@@ -9,50 +9,37 @@ const Profile = ({ session }) => {
   });
   const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
 
-  useEffect(() => {
-    let isMounted = true;
+  // Använd useCallback för att förhindra onödiga rerenders
+  const loadProfile = useCallback(async () => {
+    if (!session?.user?.id || loading) return;
 
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-        console.log('Loading profile for user:', session.user.id);
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('nickname, avatar_url')
+        .eq('id', session.user.id)
+        .single();
 
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('nickname, avatar_url')
-          .eq('id', session.user.id)
-          .single();
-
-        console.log('Profile data:', data);
-        console.log('Profile error:', error);
-
-        if (error) throw error;
-        if (data && isMounted) {
-          setProfile(data);
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error);
-        if (isMounted) {
-          setStatusMessage({
-            type: 'error',
-            text: 'Could not load profile'
-          });
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+      if (error) throw error;
+      if (data) {
+        setProfile(data);
       }
-    };
-
-    if (session?.user?.id) {
-      loadProfile();
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      setStatusMessage({
+        type: 'error',
+        text: 'Could not load profile'
+      });
+    } finally {
+      setLoading(false);
     }
+  }, [session?.user?.id, loading]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [session]);
+  // Load profile on mount
+  useState(() => {
+    loadProfile();
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -68,10 +55,7 @@ const Profile = ({ session }) => {
 
     try {
       setLoading(true);
-      console.log('Updating profile with:', {
-        id: session.user.id,
-        ...profile
-      });
+      setStatusMessage({ type: '', text: '' });
 
       const { error } = await supabase
         .from('profiles')
