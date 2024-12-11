@@ -36,17 +36,35 @@ const Profile = ({ session }) => {
   }, []);
 
   const fetchOnlineUsers = async () => {
-    const { data } = await supabase
-      .from('user_status')
-      .select(`
-        id,
-        is_online,
-        profiles:id (nickname)
-      `)
-      .eq('is_online', true);
+    try {
+      // Först hämta online users
+      const { data: onlineUsersData, error: statusError } = await supabase
+        .from('user_status')
+        .select('id')
+        .eq('is_online', true);
 
-    if (data) {
-      setOnlineUsers(data);
+      if (statusError) throw statusError;
+
+      if (onlineUsersData?.length) {
+        // Sedan hämta deras profilinfo
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, nickname')
+          .in('id', onlineUsersData.map(user => user.id));
+
+        if (profilesError) throw profilesError;
+
+        const combinedData = onlineUsersData.map(user => ({
+          ...user,
+          nickname: profilesData.find(p => p.id === user.id)?.nickname || 'Anonymous'
+        }));
+
+        setOnlineUsers(combinedData);
+      } else {
+        setOnlineUsers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching online users:', error);
     }
   };
 
@@ -114,7 +132,7 @@ const Profile = ({ session }) => {
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       setStatusMessage({
         type: 'success',
-        text: 'Avatar updated successfully!'
+        text: 'Profile picture updated successfully!'
       });
     } catch (error) {
       setStatusMessage({
@@ -214,7 +232,7 @@ const Profile = ({ session }) => {
                   {profile.avatar_url ? (
                     <img
                       src={profile.avatar_url}
-                      alt="Avatar"
+                      alt="Profile"
                       className="w-20 h-20 rounded-full object-cover"
                       onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/80';
@@ -265,7 +283,7 @@ const Profile = ({ session }) => {
                 <div key={user.id} className="flex items-center space-x-2">
                   <div className="h-2 w-2 rounded-full bg-green-500"></div>
                   <span className="text-sm text-gray-600">
-                    {user.profiles?.nickname || 'Anonymous'}
+                    {user.nickname}
                   </span>
                 </div>
               ))}
