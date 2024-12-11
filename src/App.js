@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -10,89 +10,56 @@ import Profile from './components/Profile';
 function App() {
   const [session, setSession] = useState(null);
   const [currentView, setCurrentView] = useState('chat');
-  const [lastUpdateAttempt, setLastUpdateAttempt] = useState(0);
-  const [updateError, setUpdateError] = useState(false);
-
-  const updateUserStatus = useCallback(async (userId, isOnline) => {
-    if (!userId) return;
-
-    // Kontrollera om tillräcklig tid har gått sedan senaste försök (minst 10 sekunder)
-    const now = Date.now();
-    if (now - lastUpdateAttempt < 10000) return;
-    
-    // Uppdatera senaste försökstidpunkt
-    setLastUpdateAttempt(now);
-
-    try {
-      const { error } = await supabase
-        .from('user_status')
-        .upsert({
-          id: userId,
-          is_online: isOnline,
-          last_seen: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-      setUpdateError(false);
-    } catch (error) {
-      console.error('Error updating user status:', error);
-      setUpdateError(true);
-    }
-  }, [lastUpdateAttempt]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Hämta initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) {
-        updateUserStatus(session.user.id, true);
-      }
+      setLoading(false);
     });
 
+    // Lyssna på auth ändringar
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session) {
-        updateUserStatus(session.user.id, true);
+      if (session?.user) {
+        // Skapa/uppdatera profil vid inloggning
+        await supabase
+          .from('profiles')
+          .upsert({ 
+            id: session.user.id,
+            nickname: session.user.email.split('@')[0],
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
       }
     });
 
-    // Uppdatera status var 5:e minut istället för var 30:e sekund
-    const interval = setInterval(() => {
-      if (session?.user && !updateError) {
-        updateUserStatus(session.user.id, true);
-      }
-    }, 300000); // 5 minuter
+    return () => subscription.unsubscribe();
+  }, []);
 
-    // Hantera page visibility
-    const handleVisibilityChange = () => {
-      if (session?.user) {
-        updateUserStatus(session.user.id, !document.hidden);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
 
-    // Cleanup
-    return () => {
-      subscription.unsubscribe();
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (session?.user) {
-        updateUserStatus(session.user.id, false);
-      }
-    };
-  }, [session, updateError, updateUserStatus]);
-
-  if (!session)
+  if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Welcome Back
-          </h2>
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              Welcome Back
+            </h2>
+          </div>
           <Auth
             supabaseClient={supabase}
-            theme="dark"
             appearance={{
               theme: ThemeSupa,
               variables: {
@@ -109,6 +76,20 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  const handleSignOut = async () => {
+    // Uppdatera online status innan utloggning
+    await supabase
+      .from('user_status')
+      .upsert({
+        id: session.user.id,
+        is_online: false,
+        last_seen: new Date().toISOString()
+      });
+
+    await supabase.auth.signOut();
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -137,10 +118,7 @@ function App() {
           </button>
         </div>
         <button
-          onClick={() => {
-            updateUserStatus(session.user.id, false);
-            supabase.auth.signOut();
-          }}
+          onClick={handleSignOut}
           className="inline-flex items-center px-4 py-2 rounded-lg text-red-600 hover:bg-red-50"
         >
           <LogOut size={16} className="mr-2" />
