@@ -15,9 +15,15 @@ const Profile = ({ session }) => {
   useEffect(() => {
     if (!session?.user?.id) return;
     loadProfile();
+    updateOnlineStatus(true);
+
+    return () => updateOnlineStatus(false);
   }, [session?.user?.id]);
 
   useEffect(() => {
+    const fetchOnlineUsersInterval = setInterval(fetchOnlineUsers, 30000);
+    fetchOnlineUsers();
+
     const subscription = supabase
       .channel('online-users')
       .on('postgres_changes', 
@@ -28,46 +34,44 @@ const Profile = ({ session }) => {
       )
       .subscribe();
 
-    fetchOnlineUsers();
-
     return () => {
+      clearInterval(fetchOnlineUsersInterval);
       subscription.unsubscribe();
     };
   }, []);
 
+  const updateOnlineStatus = async (isOnline) => {
+    if (!session?.user?.id) return;
+
+    try {
+      await supabase
+        .from('user_status')
+        .upsert({
+          id: session.user.id,
+          is_online: isOnline,
+          last_seen: new Date().toISOString()
+        });
+    } catch (error) {
+      console.error('Error updating online status:', error);
+    }
+  };
+
   const fetchOnlineUsers = async () => {
     try {
-      // Get online users from user_status
-      const { data: statusData, error: statusError } = await supabase
+      // Get online users with their profile information
+      const { data, error } = await supabase
         .from('user_status')
-        .select('id, is_online, last_seen')
-        .eq('is_online', true);
+        .select(`
+          id,
+          is_online,
+          last_seen,
+          profiles!inner (nickname)
+        `)
+        .eq('is_online', true)
+        .order('last_seen', { ascending: false });
 
-      if (statusError) throw statusError;
-
-      // If we have online users, get their profile information
-      if (statusData?.length) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, nickname')
-          .in('id', statusData.map(user => user.id));
-
-        if (profileError) throw profileError;
-
-        // Combine the data
-        const combinedData = statusData.map(statusUser => {
-          const userProfile = profileData?.find(profile => profile.id === statusUser.id);
-          return {
-            ...statusUser,
-            nickname: userProfile?.nickname || 'Anonymous',
-            lastSeen: new Date(statusUser.last_seen).toLocaleString()
-          };
-        });
-
-        setOnlineUsers(combinedData);
-      } else {
-        setOnlineUsers([]);
-      }
+      if (error) throw error;
+      setOnlineUsers(data || []);
     } catch (error) {
       console.error('Error fetching online users:', error);
     }
@@ -109,10 +113,9 @@ const Profile = ({ session }) => {
 
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
-      const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = `${session.user.id}/${Math.random()}.${fileExt}`;
 
-      // Upload file to Supabase Storage
+      // Upload file to avatars bucket
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
@@ -126,7 +129,7 @@ const Profile = ({ session }) => {
 
       if (urlError) throw urlError;
 
-      // Update profile with new avatar URL
+      // Update profile
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
@@ -137,7 +140,7 @@ const Profile = ({ session }) => {
       setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       setStatusMessage({
         type: 'success',
-        text: 'Profile picture updated successfully!'
+        text: 'Profile picture updated!'
       });
     } catch (error) {
       setStatusMessage({
@@ -149,14 +152,6 @@ const Profile = ({ session }) => {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProfile(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const updateProfile = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -165,8 +160,7 @@ const Profile = ({ session }) => {
       setLoading(true);
       setStatusMessage({ type: '', text: '' });
 
-      // Update profile
-      const { error: profileError } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .upsert({
           id: session.user.id,
@@ -174,18 +168,7 @@ const Profile = ({ session }) => {
           updated_at: new Date().toISOString()
         });
 
-      if (profileError) throw profileError;
-
-      // Update online status
-      const { error: statusError } = await supabase
-        .from('user_status')
-        .upsert({
-          id: session.user.id,
-          is_online: true,
-          last_seen: new Date().toISOString()
-        });
-
-      if (statusError) throw statusError;
+      if (error) throw error;
 
       setStatusMessage({
         type: 'success',
@@ -195,7 +178,6 @@ const Profile = ({ session }) => {
       setTimeout(() => {
         setStatusMessage({ type: '', text: '' });
       }, 3000);
-
     } catch (error) {
       setStatusMessage({
         type: 'error',
@@ -238,7 +220,7 @@ const Profile = ({ session }) => {
                   type="text"
                   name="nickname"
                   value={profile.nickname}
-                  onChange={handleChange}
+                  onChange={(e) => setProfile(prev => ({ ...prev, nickname: e.target.value }))}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
@@ -303,7 +285,7 @@ const Profile = ({ session }) => {
                   <div key={user.id} className="flex items-center space-x-2">
                     <div className="h-2 w-2 rounded-full bg-green-500"></div>
                     <span className="text-sm text-gray-600">
-                      {user.nickname}
+                      {user.profiles?.nickname || 'Anonymous'}
                     </span>
                   </div>
                 ))
