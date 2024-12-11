@@ -1,204 +1,155 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Send, Reply, X, Circle, Plus } from 'lucide-react';
+import { MessageSquare, Send, Reply, X } from 'lucide-react';
 
 const Chat = ({ session }) => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [selectedThread, setSelectedThread] = useState(null);
-  const [threadMessages, setThreadMessages] = useState([]);
-  const [replyContent, setReplyContent] = useState('');
-  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [threads, setThreads] = useState([]);
-  const [error, setError] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
+  const [selectedThread, setSelectedThread] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newThread, setNewThread] = useState('');
+  const [newMessage, setNewMessage] = useState('');
 
   useEffect(() => {
-    fetchUserProfile();
     fetchThreads();
-    fetchOnlineUsers();
-
-    // Subscribe to messages and threads
-    const messageSubscription = supabase
-      .channel('messages')
-      .on('INSERT', payload => {
-        if (selectedThread && payload.new.thread_id === selectedThread.id) {
-          setThreadMessages(current => [...current, payload.new]);
-        }
-      })
-      .subscribe();
-
-    // Subscribe to online status changes
-    const presenceSubscription = supabase
-      .channel('online-users')
+    
+    const subscription = supabase
+      .channel('db-changes')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'user_status' }, 
-        () => {
-          fetchOnlineUsers();
+        { event: '*', schema: 'public', table: 'threads' }, 
+        () => fetchThreads()
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        payload => {
+          if (selectedThread?.id === payload.new.thread_id) {
+            fetchMessages(selectedThread.id);
+          }
         }
       )
       .subscribe();
 
     return () => {
-      messageSubscription.unsubscribe();
-      presenceSubscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [selectedThread]);
 
-  const fetchUserProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('nickname')
-        .eq('id', session.user.id)
-        .single();
-
-      if (error) throw error;
-      setUserProfile(data);
-    } catch (err) {
-      console.error('Error fetching user profile:', err);
-    }
-  };
-
   const fetchThreads = async () => {
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .is('thread_id', null)
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      const { data: threadsData, error: threadsError } = await supabase
+        .from('threads')
+        .select(`
+          *,
+          profiles:creator_id (nickname),
+          message_count:messages(count)
+        `)
+        .order('updated_at', { ascending: false });
 
-      if (error) throw error;
-      setThreads(data || []);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching threads:', err);
-      setError('Failed to fetch threads');
+      if (threadsError) throw threadsError;
+      setThreads(threadsData || []);
+    } catch (error) {
+      console.error('Error fetching threads:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchOnlineUsers = async () => {
+  const fetchMessages = async (threadId) => {
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, nickname, avatar_url');
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          profiles:user_id (nickname)
+        `)
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: true });
 
-      if (profilesError) throw profilesError;
+      if (messagesError) throw messagesError;
+      setMessages(messagesData || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
 
-      const { data: status, error: statusError } = await supabase
-        .from('user_status')
-        .select('*')
-        .eq('is_online', true);
+  const createThread = async (e) => {
+    e.preventDefault();
+    if (!newThread.trim() || loading) return;
 
-      if (statusError) throw statusError;
+    try {
+      setLoading(true);
+      
+      const { data: thread, error: threadError } = await supabase
+        .from('threads')
+        .insert([{ 
+          title: newThread,
+          creator_id: session.user.id
+        }])
+        .select()
+        .single();
 
-      const onlineUsersWithProfiles = status.map(user => {
-        const profile = profiles.find(p => p.id === user.id);
-        return {
-          ...user,
-          nickname: profile?.nickname || 'Anonymous User'
-        };
-      });
+      if (threadError) throw threadError;
 
-      setOnlineUsers(onlineUsersWithProfiles);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching online users:', err);
-      setError('Failed to fetch online users');
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert([{
+          content: newThread,
+          user_id: session.user.id,
+          thread_id: thread.id
+        }]);
+
+      if (messageError) throw messageError;
+
+      setNewThread('');
+      fetchThreads();
+    } catch (error) {
+      console.error('Error creating thread:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedThread || loading) return;
 
     try {
-      const messageData = {
-        content: newMessage,
-        user_id: session.user.id,
-        sender: userProfile?.nickname || 'Anonymous'
-      };
+      setLoading(true);
 
-      const { data, error } = await supabase
+      const { error: messageError } = await supabase
         .from('messages')
-        .insert([messageData])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setNewMessage('');
-      setThreads(current => [data, ...current]);
-      setError(null);
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setError('Failed to send message');
-    }
-  };
-
-  const sendReply = async (e) => {
-    e.preventDefault();
-    if (!replyContent.trim() || !selectedThread) return;
-
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .insert([{ 
-          content: replyContent,
-          thread_id: selectedThread.id,
+        .insert([{
+          content: newMessage,
           user_id: session.user.id,
-          sender: userProfile?.nickname || 'Anonymous'
+          thread_id: selectedThread.id
         }]);
 
-      if (error) throw error;
-      
-      setReplyContent('');
-      setError(null);
-      // Uppdatera trådens meddelanden
-      fetchThreadMessages(selectedThread.id);
-    } catch (err) {
-      console.error('Error sending reply:', err);
-      setError('Failed to send reply');
-    }
-  };
+      if (messageError) throw messageError;
 
-  const fetchThreadMessages = async (threadId) => {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('thread_id', threadId)
-        .order('created_at', { ascending: true });
+      const { error: updateError } = await supabase
+        .from('threads')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', selectedThread.id);
 
-      if (error) throw error;
-      setThreadMessages(data || []);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching thread messages:', err);
-      setError('Failed to load thread messages');
+      if (updateError) throw updateError;
+
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const openThread = async (thread) => {
     setSelectedThread(thread);
-    await fetchThreadMessages(thread.id);
+    await fetchMessages(thread.id);
   };
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString();
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleString();
   };
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-full p-4 gap-4">
@@ -215,49 +166,53 @@ const Chat = ({ session }) => {
                 onClick={() => openThread(thread)}
                 className={`p-3 rounded-lg cursor-pointer ${selectedThread?.id === thread.id ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50'}`}
               >
-                <p className="text-sm line-clamp-2">{thread.content}</p>
-                <div className="mt-2 flex justify-between text-xs text-gray-500">
-                  <span>{thread.sender}</span>
-                  <span>{formatTimestamp(thread.created_at)}</span>
+                <p className="text-sm font-medium">{thread.title}</p>
+                <div className="mt-1 text-xs text-gray-500 flex justify-between">
+                  <span>By {thread.profiles?.nickname || 'Anonymous'}</span>
+                  <span>{thread.message_count} messages</span>
+                </div>
+                <div className="mt-1 text-xs text-gray-400">
+                  {formatTime(thread.updated_at)}
                 </div>
               </div>
             ))}
           </div>
         </div>
         <div className="p-4 border-t">
-          <form onSubmit={sendMessage} className="flex flex-col space-y-2">
+          <form onSubmit={createThread} className="space-y-2">
             <input
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              type="text"
               placeholder="Start a new thread..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              value={newThread}
+              onChange={(e) => setNewThread(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
             <button
               type="submit"
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+              className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              <Plus size={16} className="mr-2" />
-              New Thread
+              {loading ? 'Creating...' : 'Create Thread'}
             </button>
           </form>
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white shadow rounded-lg">
+      {/* Messages Area */}
+      <div className="flex-1 bg-white shadow rounded-lg flex flex-col">
         {selectedThread ? (
           <>
             <div className="p-4 border-b">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-medium">Thread</h3>
+                  <h3 className="font-medium">{selectedThread.title}</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Started by {selectedThread.sender} - {formatTimestamp(selectedThread.created_at)}
+                    Started by {selectedThread.profiles?.nickname || 'Anonymous'}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedThread(null)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <X size={20} />
                 </button>
@@ -265,21 +220,17 @@ const Chat = ({ session }) => {
             </div>
             
             <div className="flex-grow overflow-y-auto p-4">
-              <div className="bg-gray-100 rounded-lg p-3 mb-4">
-                <p>{selectedThread.content}</p>
-              </div>
-              
-              <div className="space-y-4 mt-4">
-                {threadMessages.map((message) => (
+              <div className="space-y-4">
+                {messages.map((message) => (
                   <div key={message.id} className="flex items-start space-x-2">
-                    <MessageSquare size={16} className="text-gray-500 mt-1" />
+                    <MessageSquare size={16} className="text-gray-400 mt-1" />
                     <div className="flex-grow">
-                      <div className="bg-gray-100 rounded-lg p-3">
+                      <div className="bg-gray-50 rounded-lg p-3">
                         <p>{message.content}</p>
                       </div>
-                      <div className="mt-1 flex justify-between text-xs text-gray-500">
-                        <span>{message.sender}</span>
-                        <span>{formatTimestamp(message.created_at)}</span>
+                      <div className="mt-1 text-xs text-gray-500 flex justify-between">
+                        <span>{message.profiles?.nickname || 'Anonymous'}</span>
+                        <span>{formatTime(message.created_at)}</span>
                       </div>
                     </div>
                   </div>
@@ -287,20 +238,22 @@ const Chat = ({ session }) => {
               </div>
             </div>
 
-            <form onSubmit={sendReply} className="p-4 border-t">
+            <form onSubmit={sendMessage} className="p-4 border-t">
               <div className="flex space-x-2">
                 <input
+                  type="text"
+                  placeholder="Type your message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
                   className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Reply to thread..."
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
                 />
                 <button
                   type="submit"
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  disabled={loading}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                 >
-                  <Reply size={16} className="mr-2" />
-                  Reply
+                  <Send size={16} className="mr-2" />
+                  Send
                 </button>
               </div>
             </form>
@@ -310,19 +263,6 @@ const Chat = ({ session }) => {
             Select a thread to view messages
           </div>
         )}
-      </div>
-
-      {/* Online Users */}
-      <div className="w-64 bg-white shadow rounded-lg p-4">
-        <h3 className="font-medium mb-4">Online Users</h3>
-        <div className="space-y-2">
-          {onlineUsers.map((user) => (
-            <div key={user.id} className="flex items-center space-x-2">
-              <Circle size={8} className="text-green-500 fill-current" />
-              <span>{user.nickname}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
