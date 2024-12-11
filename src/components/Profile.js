@@ -37,27 +37,32 @@ const Profile = ({ session }) => {
 
   const fetchOnlineUsers = async () => {
     try {
-      // Först hämta online users
-      const { data: onlineUsersData, error: statusError } = await supabase
+      // Get online users from user_status
+      const { data: statusData, error: statusError } = await supabase
         .from('user_status')
-        .select('id')
+        .select('id, is_online, last_seen')
         .eq('is_online', true);
 
       if (statusError) throw statusError;
 
-      if (onlineUsersData?.length) {
-        // Sedan hämta deras profilinfo
-        const { data: profilesData, error: profilesError } = await supabase
+      // If we have online users, get their profile information
+      if (statusData?.length) {
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('id, nickname')
-          .in('id', onlineUsersData.map(user => user.id));
+          .in('id', statusData.map(user => user.id));
 
-        if (profilesError) throw profilesError;
+        if (profileError) throw profileError;
 
-        const combinedData = onlineUsersData.map(user => ({
-          ...user,
-          nickname: profilesData.find(p => p.id === user.id)?.nickname || 'Anonymous'
-        }));
+        // Combine the data
+        const combinedData = statusData.map(statusUser => {
+          const userProfile = profileData?.find(profile => profile.id === statusUser.id);
+          return {
+            ...statusUser,
+            nickname: userProfile?.nickname || 'Anonymous',
+            lastSeen: new Date(statusUser.last_seen).toLocaleString()
+          };
+        });
 
         setOnlineUsers(combinedData);
       } else {
@@ -160,7 +165,8 @@ const Profile = ({ session }) => {
       setLoading(true);
       setStatusMessage({ type: '', text: '' });
 
-      const { error } = await supabase
+      // Update profile
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: session.user.id,
@@ -168,7 +174,18 @@ const Profile = ({ session }) => {
           updated_at: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Update online status
+      const { error: statusError } = await supabase
+        .from('user_status')
+        .upsert({
+          id: session.user.id,
+          is_online: true,
+          last_seen: new Date().toISOString()
+        });
+
+      if (statusError) throw statusError;
 
       setStatusMessage({
         type: 'success',
@@ -279,14 +296,18 @@ const Profile = ({ session }) => {
           <div className="col-span-1">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Online Users</h3>
             <div className="space-y-2">
-              {onlineUsers.map(user => (
-                <div key={user.id} className="flex items-center space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span className="text-sm text-gray-600">
-                    {user.nickname}
-                  </span>
-                </div>
-              ))}
+              {onlineUsers.length === 0 ? (
+                <p className="text-sm text-gray-500">No users online</p>
+              ) : (
+                onlineUsers.map(user => (
+                  <div key={user.id} className="flex items-center space-x-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <span className="text-sm text-gray-600">
+                      {user.nickname}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
