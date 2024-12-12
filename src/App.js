@@ -10,22 +10,29 @@ import Profile from './components/Profile';
 function App() {
   const [session, setSession] = useState(null);
   const [currentView, setCurrentView] = useState('chat');
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Hämta initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setLoading(false);
+      if (session?.user) {
+        // Skapa/uppdatera profil vid inloggning
+        supabase
+          .from('profiles')
+          .upsert({ 
+            id: session.user.id,
+            nickname: session.user.email.split('@')[0],
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+      }
     });
 
-    // Lyssna på auth ändringar
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session?.user) {
-        // Skapa/uppdatera profil vid inloggning
         await supabase
           .from('profiles')
           .upsert({ 
@@ -40,14 +47,6 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
 
   if (!session) {
     return (
