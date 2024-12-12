@@ -41,7 +41,7 @@ const Chat = ({ session }) => {
         .from('threads')
         .select(`
           *,
-          profiles:creator_id (nickname),
+          profiles:created_by (nickname),
           message_count:messages(count)
         `)
         .order('updated_at', { ascending: false });
@@ -84,7 +84,7 @@ const Chat = ({ session }) => {
         .from('threads')
         .insert([{ 
           title: newThread,
-          creator_id: session.user.id
+          created_by: session.user.id
         }])
         .select()
         .single();
