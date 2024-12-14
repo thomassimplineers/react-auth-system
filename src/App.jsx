@@ -1,1 +1,72 @@
-aW1wb3J0IHsgQnJvd3NlclJvdXRlciBhcyBSb3V0ZXIsIFJvdXRlcywgUm91dGUsIE5hdmlnYXRlIH0gZnJvbSAncmVhY3Qtcm91dGVyLWRvbSc7CmltcG9ydCB7IFN1c3BlbnNlLCBsYXp5IH0gZnJvbSAncmVhY3QnOwppbXBvcnQgeyBBdXRoUHJvdmlkZXIgfSBmcm9tICcuL2NvbnRleHRzL0F1dGhDb250ZXh0JzsKaW1wb3J0IHsgVG9hc3RlciB9IGZyb20gJ3JlYWN0LWhvdC10b2FzdCc7CmltcG9ydCBMb2FkaW5nU3Bpbm5lciBmcm9tICcuL2NvbXBvbmVudHMvVUkvTG9hZGluZ1NwaW5uZXInOwppbXBvcnQgRXJyb3JCb3VuZGFyeSBmcm9tICcuL2NvbXBvbmVudHMvRXJyb3JCb3VuZGFyeSc7CgovLyBMYXp5IGxvYWQgY29tcG9uZW50cwpjb25zdCBMb2dpbkZvcm0gPSBsYXp5KCgpID0+IGltcG9ydCgnLi9jb21wb25lbnRzL0F1dGgvTG9naW5Gb3JtJykpOwpjb25zdCBTaWduVXBGb3JtID0gbGF6eSgoKSA9PiBpbXBvcnQoJy4vY29tcG9uZW50cy9BdXRoL1NpZ25VcEZvcm0nKSk7CmNvbnN0IERhc2hib2FyZCA9IGxhenkoKCkgPT4gaW1wb3J0KCcuL2NvbXBvbmVudHMvRGFzaGJvYXJkJykpOwpjb25zdCBOb3RGb3VuZCA9IGxhenkoKCkgPT4gaW1wb3J0KCcuL2NvbXBvbmVudHMvTm90Rm91bmQnKSk7CmNvbnN0IFByb3RlY3RlZFJvdXRlID0gbGF6eSgoKSA9PiBpbXBvcnQoJy4vY29tcG9uZW50cy9BdXRoL1Byb3RlY3RlZFJvdXRlJykpOwoKZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gQXBwKCkgewogIHJldHVybiAoCiAgICA8RXJyb3JCb3VuZGFyeT4KICAgICAgPFJvdXRlcj4KICAgICAgICA8QXV0aFByb3ZpZGVyPgogICAgICAgICAgPFRvYXN0ZXIgCiAgICAgICAgICAgIHBvc2l0aW9uPSJ0b3AtcmlnaHQiIAogICAgICAgICAgICB0b2FzdE9wdGlvbnM9e3sKICAgICAgICAgICAgICBkdXJhdGlvbjogNTAwMCwKICAgICAgICAgICAgICBzdHlsZTogeyBiYWNrZ3JvdW5kOiAnIzMzMycsIGNvbG9yOiAnI2ZmZicgfQogICAgICAgICAgICB9fSAKICAgICAgICAgIC8+CiAgICAgICAgICA8U3VzcGVuc2UgZmFsbGJhY2s9ezxMb2FkaW5nU3Bpbm5lciAvPn0+CiAgICAgICAgICAgIDxSb3V0ZXM+CiAgICAgICAgICAgICAgPFJvdXRlIHBhdGg9Ii9sb2dpbiIgZWxlbWVudD17PExvZ2luRm9ybSAvPn0gLz4KICAgICAgICAgICAgICA8Um91dGUgcGF0aD0iL3NpZ251cCIgZWxlbWVudD17PFNpZ25VcEZvcm0gLz59IC8+CiAgICAgICAgICAgICAgPFJvdXRlIHBhdGg9Ii8iIGVsZW1lbnQ9ewogICAgICAgICAgICAgICAgPFByb3RlY3RlZFJvdXRlPgogICAgICAgICAgICAgICAgICA8RGFzaGJvYXJkIC8+CiAgICAgICAgICAgICAgICA8L1Byb3RlY3RlZFJvdXRlPgogICAgICAgICAgICAgIH0gLz4KICAgICAgICAgICAgICA8Um91dGUgcGF0aD0iLzQwNCIgZWxlbWVudD17PE5vdEZvdW5kIC8+fSAvPgogICAgICAgICAgICAgIDxSb3V0ZSBwYXRoPSIqIiBlbGVtZW50PXs8TmF2aWdhdGUgdG89Ii80MDQiIHJlcGxhY2UgLz59IC8+CiAgICAgICAgICAgIDwvUm91dGVzPgogICAgICAgICAgPC9TdXNwZW5zZT4KICAgICAgICA8L0F1dGhQcm92aWRlcj4KICAgICAgPC9Sb3V0ZXI+CiAgICA8L0Vycm9yQm91bmRhcnk+CiAgKTsKfQ==
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts';
+import ErrorBoundary from './components/ErrorBoundary';
+import Menu from './components/Menu';
+import Chat from './components/Chat';
+import Login from './components/Login';
+import Register from './components/Register';
+import Profile from './components/Profile';
+import Statistics from './components/Statistics';
+import OnlineUsers from './components/OnlineUsers';
+import { useAuth } from './contexts';
+
+const PrivateRoute = ({ children }) => {
+  const { currentUser } = useAuth();
+  return currentUser ? children : <Navigate to="/login" />;
+};
+
+const App = () => {
+  return (
+    <Router>
+      <ErrorBoundary>
+        <AuthProvider>
+          <div className="min-h-screen bg-gray-50">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route
+                path="/"
+                element={
+                  <PrivateRoute>
+                    <div>
+                      <Menu />
+                      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                        <div className="flex space-x-4">
+                          <div className="flex-1">
+                            <Chat />
+                          </div>
+                          <div className="hidden lg:block">
+                            <OnlineUsers />
+                          </div>
+                        </div>
+                        <div className="mt-6">
+                          <Statistics />
+                        </div>
+                      </div>
+                    </div>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <div>
+                      <Menu />
+                      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                        <Profile />
+                      </div>
+                    </div>
+                  </PrivateRoute>
+                }
+              />
+            </Routes>
+          </div>
+        </AuthProvider>
+      </ErrorBoundary>
+    </Router>
+  );
+};
+
+export default App;

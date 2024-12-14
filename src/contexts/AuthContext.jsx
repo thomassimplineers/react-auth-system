@@ -1,41 +1,56 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import { supabaseClient } from '../lib/supabaseClient'
-import toast from 'react-hot-toast'
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const AuthContext = createContext({})
+const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext)
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+export const AuthProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Simulerad inloggningsfunktion - ersätt med riktig auth logik
+  const login = async (email, password) => {
+    // Implementera inloggningslogik här
+    setCurrentUser({ email });
+  };
+
+  const register = async (email, password) => {
+    // Implementera registreringslogik här
+    setCurrentUser({ email });
+  };
+
+  const logout = async () => {
+    // Implementera utloggningslogik här
+    setCurrentUser(null);
+  };
+
+  const updateProfile = async (data) => {
+    // Implementera profiluppdateringslogik här
+    setCurrentUser(prev => ({ ...prev, ...data }));
+  };
 
   useEffect(() => {
-    const getSession = async () => {
-      try {
-        const { data: { session }, error } = await supabaseClient.auth.getSession()
-        if (error) throw error
-        setUser(session?.user ?? null)
-      } catch (error) {
-        toast.error(error.message)
-      } finally {
-        setLoading(false)
-      }
-    }
+    // Kontrollera om användaren är inloggad vid sidladdning
+    // Implementera sessions-kontroll här
+    setLoading(false);
+  }, []);
 
-    getSession()
-
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) toast.success('Successfully authenticated!')
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  const value = {
+    currentUser,
+    login,
+    register,
+    logout,
+    updateProfile,
+    loading
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
-  )
-}
+  );
+};
+
+export default AuthContext;
