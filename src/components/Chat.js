@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { MessageSquare, Send, Reply, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-const Chat = ({ session }) => {
+const Chat = () => {
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [threads, setThreads] = useState([]);
   const [selectedThread, setSelectedThread] = useState(null);
@@ -11,28 +13,30 @@ const Chat = ({ session }) => {
   const [newMessage, setNewMessage] = useState('');
 
   useEffect(() => {
-    fetchThreads();
-    
-    const subscription = supabase
-      .channel('db-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'threads' }, 
-        () => fetchThreads()
-      )
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        payload => {
-          if (selectedThread?.id === payload.new.thread_id) {
-            fetchMessages(selectedThread.id);
+    if (currentUser) {
+      fetchThreads();
+      
+      const subscription = supabase
+        .channel('db-changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'threads' }, 
+          () => fetchThreads()
+        )
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          payload => {
+            if (selectedThread?.id === payload.new.thread_id) {
+              fetchMessages(selectedThread.id);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [selectedThread]);
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [selectedThread, currentUser]);
 
   const fetchThreads = async () => {
     try {
@@ -40,7 +44,11 @@ const Chat = ({ session }) => {
       const { data: threadsData, error: threadsError } = await supabase
         .from('threads')
         .select(`
-          *,
+          id,
+          title,
+          created_at,
+          updated_at,
+          created_by,
           profiles:created_by (nickname),
           message_count:messages(count)
         `)
@@ -60,7 +68,10 @@ const Chat = ({ session }) => {
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select(`
-          *,
+          id,
+          content,
+          created_at,
+          user_id,
           profiles:user_id (nickname)
         `)
         .eq('thread_id', threadId)
@@ -75,7 +86,7 @@ const Chat = ({ session }) => {
 
   const createThread = async (e) => {
     e.preventDefault();
-    if (!newThread.trim() || loading) return;
+    if (!newThread.trim() || loading || !currentUser) return;
 
     try {
       setLoading(true);
@@ -83,8 +94,8 @@ const Chat = ({ session }) => {
       const { data: thread, error: threadError } = await supabase
         .from('threads')
         .insert([{ 
-          title: newThread,
-          created_by: session.user.id
+          title: newThread.trim(),
+          created_by: currentUser.id
         }])
         .select()
         .single();
@@ -94,8 +105,8 @@ const Chat = ({ session }) => {
       const { error: messageError } = await supabase
         .from('messages')
         .insert([{
-          content: newThread,
-          user_id: session.user.id,
+          content: newThread.trim(),
+          user_id: currentUser.id,
           thread_id: thread.id
         }]);
 
@@ -112,7 +123,7 @@ const Chat = ({ session }) => {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedThread || loading) return;
+    if (!newMessage.trim() || !selectedThread || loading || !currentUser) return;
 
     try {
       setLoading(true);
@@ -120,8 +131,8 @@ const Chat = ({ session }) => {
       const { error: messageError } = await supabase
         .from('messages')
         .insert([{
-          content: newMessage,
-          user_id: session.user.id,
+          content: newMessage.trim(),
+          user_id: currentUser.id,
           thread_id: selectedThread.id
         }]);
 
@@ -150,6 +161,14 @@ const Chat = ({ session }) => {
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleString();
   };
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-gray-500">Please log in to access the chat.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full p-4 gap-4">
