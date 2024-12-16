@@ -28,6 +28,10 @@ const AppRoutes: React.FC = () => {
     navigate('/register');
   };
 
+  const handleLoginClick = () => {
+    navigate('/login');
+  };
+
   return (
     <ErrorBoundary>
       <AuthProvider>
@@ -42,7 +46,14 @@ const AppRoutes: React.FC = () => {
                 />
               } 
             />
-            <Route path="/register" element={<Register />} />
+            <Route 
+              path="/register" 
+              element={
+                <Register 
+                  onLoginClick={handleLoginClick}
+                />
+              } 
+            />
             <Route
               path="/"
               element={
