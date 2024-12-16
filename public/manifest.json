@@ -1,7 +1,13 @@
 {
-  "short_name": "React Auth",
-  "name": "React Authentication System",
-  "icons": [],
+  "short_name": "Chat App",
+  "name": "React Auth System Chat",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",
