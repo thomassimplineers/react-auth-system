@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -10,32 +11,59 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Simulerad inloggningsfunktion - ersätt med riktig auth logik
+  useEffect(() => {
+    // Check active session
+    const session = supabase.auth.getSession();
+    setCurrentUser(session?.user ?? null);
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setCurrentUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const login = async (email, password) => {
-    // Implementera inloggningslogik här
-    setCurrentUser({ email });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
   };
 
   const register = async (email, password) => {
-    // Implementera registreringslogik här
-    setCurrentUser({ email });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      }
+    });
+    if (error) throw error;
+    return data;
   };
 
   const logout = async () => {
-    // Implementera utloggningslogik här
-    setCurrentUser(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   const updateProfile = async (data) => {
-    // Implementera profiluppdateringslogik här
-    setCurrentUser(prev => ({ ...prev, ...data }));
-  };
+    const { user, error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: currentUser.id,
+        ...data,
+        updated_at: new Date().toISOString(),
+      })
+      .single();
 
-  useEffect(() => {
-    // Kontrollera om användaren är inloggad vid sidladdning
-    // Implementera sessions-kontroll här
-    setLoading(false);
-  }, []);
+    if (error) throw error;
+    return user;
+  };
 
   const value = {
     currentUser,
