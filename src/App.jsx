@@ -1,70 +1,71 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts';
-import ErrorBoundary from './components/ErrorBoundary';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { supabase } from './lib/supabaseClient';
+import { Session } from '@supabase/supabase-js';
+
 import Menu from './components/Menu';
-import Chat from './components/Chat';
-import Login from './components/Login';
-import Register from './components/Register';
+import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
-import Statistics from './components/Statistics';
-import OnlineUsers from './components/OnlineUsers';
-import { useAuth } from './contexts';
 
-const PrivateRoute = ({ children }) => {
-  const { currentUser } = useAuth();
-  return currentUser ? children : <Navigate to="/login" />;
-};
+const App: React.FC = () => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [currentView, setCurrentView] = useState('dashboard');
 
-const App = () => {
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
+            Sign in to your account
+          </h2>
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ 
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: '#404040',
+                    brandAccent: '#52525b'
+                  }
+                }
+              }
+            }}
+            providers={[]}
+            redirectTo={window.location.origin}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Router>
-      <ErrorBoundary>
-        <AuthProvider>
-          <div className="min-h-screen bg-gray-50">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <div>
-                      <Menu />
-                      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                        <div className="flex space-x-4">
-                          <div className="flex-1">
-                            <Chat />
-                          </div>
-                          <div className="hidden lg:block">
-                            <OnlineUsers />
-                          </div>
-                        </div>
-                        <div className="mt-6">
-                          <Statistics />
-                        </div>
-                      </div>
-                    </div>
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <PrivateRoute>
-                    <div>
-                      <Menu />
-                      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                        <Profile />
-                      </div>
-                    </div>
-                  </PrivateRoute>
-                }
-              />
-            </Routes>
-          </div>
-        </AuthProvider>
-      </ErrorBoundary>
+      <div className="min-h-screen bg-gray-100">
+        <Menu setCurrentView={setCurrentView} />
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          {currentView === 'dashboard' && <Dashboard />}
+          {currentView === 'profile' && <Profile />}
+        </div>
+      </div>
     </Router>
   );
 };
