@@ -9,45 +9,17 @@ import Menu from './components/Menu';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
 
-const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!session) {
-    return <Navigate to="/login" />;
-  }
-
-  return <>{children}</>;
-};
-
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [currentView, setCurrentView] = useState('dashboard');
 
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -61,6 +33,9 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
+          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
+            Sign in to your account
+          </h2>
           <Auth
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
@@ -74,23 +49,11 @@ const App: React.FC = () => {
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <div>
-                  <Menu setCurrentView={setCurrentView} />
-                  <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                    {currentView === 'dashboard' && <Dashboard />}
-                    {currentView === 'profile' && <Profile />}
-                  </div>
-                </div>
-              </PrivateRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+        <Menu setCurrentView={setCurrentView} />
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          {currentView === 'dashboard' && <Dashboard />}
+          {currentView === 'profile' && <Profile />}
+        </div>
       </div>
     </Router>
   );
