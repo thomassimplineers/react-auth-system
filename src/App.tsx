@@ -1,106 +1,97 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { AuthProvider } from './contexts';
-import ErrorBoundary from './components/ErrorBoundary';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { supabase } from './lib/supabaseClient';
+import { Session } from '@supabase/supabase-js';
+
 import Menu from './components/Menu';
-import Chat from './components/Chat';
-import Login from './components/Login';
-import Register from './components/Register';
+import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
-import Statistics from './components/Statistics';
-import OnlineUsers from './components/OnlineUsers';
-import { useAuth } from './contexts';
 
-interface PrivateRouteProps {
-  children: React.ReactNode;
-}
+const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { currentUser } = useAuth();
-  return currentUser ? <>{children}</> : <Navigate to="/login" />;
-};
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-const AppRoutes: React.FC = () => {
-  const navigate = useNavigate();
-  const [session, setSession] = useState<any>(null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
-  const handleRegisterClick = () => {
-    navigate('/register');
-  };
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const handleLoginClick = () => {
-    navigate('/login');
-  };
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
-  return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Routes>
-            <Route 
-              path="/login" 
-              element={
-                <Login 
-                  onRegisterClick={handleRegisterClick}
-                  setSession={setSession}
-                />
-              } 
-            />
-            <Route 
-              path="/register" 
-              element={
-                <Register 
-                  onLoginClick={handleLoginClick}
-                />
-              } 
-            />
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  <div>
-                    <Menu />
-                    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                      <div className="flex space-x-4">
-                        <div className="flex-1">
-                          <Chat />
-                        </div>
-                        <div className="hidden lg:block">
-                          <OnlineUsers />
-                        </div>
-                      </div>
-                      <div className="mt-6">
-                        <Statistics />
-                      </div>
-                    </div>
-                  </div>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <PrivateRoute>
-                  <div>
-                    <Menu />
-                    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                      <Profile />
-                    </div>
-                  </div>
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        </div>
-      </AuthProvider>
-    </ErrorBoundary>
-  );
+  if (!session) {
+    return <Navigate to="/login" />;
+  }
+
+  return <>{children}</>;
 };
 
 const App: React.FC = () => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [currentView, setCurrentView] = useState('dashboard');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ theme: ThemeSupa }}
+            providers={['email']}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Router>
-      <AppRoutes />
+      <div className="min-h-screen bg-gray-100">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <div>
+                  <Menu setCurrentView={setCurrentView} />
+                  <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                    {currentView === 'dashboard' && <Dashboard />}
+                    {currentView === 'profile' && <Profile />}
+                  </div>
+                </div>
+              </PrivateRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
     </Router>
   );
 };
