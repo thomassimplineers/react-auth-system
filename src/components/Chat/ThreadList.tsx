@@ -1,18 +1,37 @@
 import React, { useState } from 'react';
-import { ThreadListProps, Thread } from './types';
+import { UiThread } from '../../types/ui';
+import { ThreadListProps } from '../../types/ui';
 import CreateThread from './CreateThread';
+import { mapApiThreadToUi, mapUiThreadToApi } from '../../utils/mappers';
+import { supabase } from '../../lib/supabaseClient';
 
 const ThreadList: React.FC<ThreadListProps> = ({ activeThread, onThreadSelect }) => {
-  const [threads, setThreads] = useState<Thread[]>([]); // In a real app, this would be managed by a context or state management
+  const [threads, setThreads] = useState<UiThread[]>([]);
   const [showCreateThread, setShowCreateThread] = useState(false);
 
-  const handleCreateThread = (newThread: Omit<Thread, 'id'>) => {
-    const thread: Thread = {
-      ...newThread,
-      id: Date.now().toString(), // In a real app, this would be handled by the backend
-    };
-    setThreads([...threads, thread]);
-    onThreadSelect?.(thread.id);
+  // När vi hämtar data från Supabase
+  const fetchThreads = async () => {
+    const { data, error } = await supabase.from('chat_threads').select('*');
+    if (data) {
+      const uiThreads = data.map(mapApiThreadToUi);
+      setThreads(uiThreads);
+    }
+  };
+
+  // När vi skapar en ny tråd
+  const handleCreateThread = async (newThread: Omit<UiThread, 'id'>) => {
+    const apiThread = mapUiThreadToApi(newThread);
+    const { data, error } = await supabase
+      .from('chat_threads')
+      .insert([apiThread])
+      .select()
+      .single();
+      
+    if (data) {
+      const uiThread = mapApiThreadToUi(data);
+      setThreads([...threads, uiThread]);
+      onThreadSelect?.(uiThread.id);
+    }
   };
 
   return (
@@ -52,11 +71,15 @@ const ThreadList: React.FC<ThreadListProps> = ({ activeThread, onThreadSelect })
                 <button
                   key={thread.id}
                   onClick={() => onThreadSelect?.(thread.id)}
-                  className={`w-full p-3 text-left hover:bg-gray-50 ${activeThread === thread.id ? 'bg-gray-100' : ''}`}
+                  className={`w-full p-3 text-left hover:bg-gray-50 ${
+                    activeThread === thread.id ? 'bg-gray-100' : ''
+                  }`}
                 >
                   <div className="font-medium">{thread.name}</div>
-                  {thread.last_message && (
-                    <div className="text-sm text-gray-500 truncate">{thread.last_message.text}</div>
+                  {thread.lastMessage && (
+                    <div className="text-sm text-gray-500 truncate">
+                      {thread.lastMessage.text}
+                    </div>
                   )}
                 </button>
               ))}
