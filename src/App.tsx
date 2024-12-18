@@ -5,19 +5,19 @@ import Menu from './components/Menu';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
 import LoginForm from './components/auth/LoginForm';
+import RegisterForm from './components/auth/RegisterForm';
 import { Session } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [currentView, setCurrentView] = useState('dashboard');
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -30,8 +30,12 @@ const App: React.FC = () => {
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <LoginForm />
+        <div className="max-w-md w-full">
+          {authView === 'login' ? (
+            <LoginForm onRegisterClick={() => setAuthView('register')} />
+          ) : (
+            <RegisterForm onLoginClick={() => setAuthView('login')} />
+          )}
         </div>
       </div>
     );
