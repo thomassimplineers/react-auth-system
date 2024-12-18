@@ -39,7 +39,7 @@ const App: React.FC = () => {
           <Auth
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
-            providers={['email'] as const}
+            view="sign_in"
           />
         </div>
       </div>
