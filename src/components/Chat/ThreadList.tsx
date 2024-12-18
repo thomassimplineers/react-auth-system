@@ -55,8 +55,8 @@ const ThreadList: React.FC<ThreadListProps> = ({ activeThread, onThreadSelect })
                   className={`w-full p-3 text-left hover:bg-gray-50 ${activeThread === thread.id ? 'bg-gray-100' : ''}`}
                 >
                   <div className="font-medium">{thread.name}</div>
-                  {thread.lastMessage && (
-                    <div className="text-sm text-gray-500 truncate">{thread.lastMessage.text}</div>
+                  {thread.last_message && (
+                    <div className="text-sm text-gray-500 truncate">{thread.last_message.text}</div>
                   )}
                 </button>
               ))}
