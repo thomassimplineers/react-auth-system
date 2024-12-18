@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from '../../lib/supabaseClient';
 
 const LoginForm = () => {
@@ -29,49 +30,56 @@ const LoginForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-red-50 text-red-500 p-3 rounded">
-          {error}
-        </div>
-      )}
-      
-      <div>
-        <Input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-center">Sign in to your account</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 text-red-500 p-3 rounded text-sm">
+              {error}
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <Input
+              id="email"
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-      <div>
-        <Input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </div>
+          <div className="space-y-2">
+            <Input
+              id="password"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-      <div>
-        <Button 
-          type="submit" 
-          className="w-full"
-          disabled={loading}
-        >
-          {loading ? 'Signing in...' : 'Sign in'}
-        </Button>
-      </div>
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign in'}
+          </Button>
 
-      <div className="text-sm text-center">
-        <a href="#" className="text-indigo-600 hover:text-indigo-500">
-          Forgot your password?
-        </a>
-      </div>
-    </form>
+          <div className="text-center text-sm">
+            <Button variant="link" className="text-blue-500 hover:text-blue-600">
+              Forgot password?
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 
