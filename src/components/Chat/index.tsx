@@ -32,13 +32,15 @@ const Chat: React.FC = () => {
     try {
       const message: MessageType = {
         id: Date.now().toString(), // In a real app, this would be handled by the backend
+        thread_id: activeThread,
+        user_id: currentUser.uid || '',
         text: newMessage.trim(),
+        created_at: new Date().toISOString(),
         user: {
           uid: currentUser.uid || '',
-          email: currentUser.email,
+          email: currentUser.email || '',
           displayName: currentUser.displayName
-        },
-        timestamp: Date.now()
+        }
       };
 
       setThreadMessages(prev => ({
