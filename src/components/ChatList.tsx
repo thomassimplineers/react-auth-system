@@ -5,6 +5,8 @@ interface ChatThread {
   id: string;
   title: string;
   created_at: string;
+  created_by: string;
+  updated_at: string;
 }
 
 interface ChatListProps {
@@ -58,12 +60,15 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectThread }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
+      const now = new Date().toISOString();
       const { error } = await supabase
         .from('chat_threads')
         .insert([
           { 
             title: newThreadTitle.trim(),
-            created_by: user.id
+            created_by: user.id,
+            created_at: now,
+            updated_at: now
           }
         ]);
 
