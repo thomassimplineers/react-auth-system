@@ -6,12 +6,13 @@ import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
 import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
+import PasswordResetForm from './components/auth/PasswordResetForm';
 import { Session } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [currentView, setCurrentView] = useState('dashboard');
-  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [authView, setAuthView] = useState<'login' | 'register' | 'reset-password'>('login');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,10 +32,19 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          {authView === 'login' ? (
-            <LoginForm onRegisterClick={() => setAuthView('register')} />
-          ) : (
+          {authView === 'login' && (
+            <LoginForm 
+              onRegisterClick={() => setAuthView('register')}
+              onForgotPasswordClick={() => setAuthView('reset-password')}
+            />
+          )}
+          
+          {authView === 'register' && (
             <RegisterForm onLoginClick={() => setAuthView('login')} />
+          )}
+          
+          {authView === 'reset-password' && (
+            <PasswordResetForm onLoginClick={() => setAuthView('login')} />
           )}
         </div>
       </div>

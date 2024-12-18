@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from '../../lib/supabaseClient';
 
-const PasswordResetForm = () => {
+interface PasswordResetFormProps {
+  onLoginClick: () => void;
+}
+
+const PasswordResetForm: React.FC<PasswordResetFormProps> = ({ onLoginClick }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -12,12 +17,11 @@ const PasswordResetForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
     setLoading(true);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       });
 
       if (error) throw error;
@@ -31,56 +35,61 @@ const PasswordResetForm = () => {
 
   if (success) {
     return (
-      <div className="text-center">
-        <div className="bg-green-50 text-green-500 p-3 rounded mb-4">
-          Password reset instructions have been sent to your email.
-        </div>
-        <Button
-          variant="link"
-          onClick={() => setSuccess(false)}
-          className="text-indigo-600 hover:text-indigo-500"
-        >
-          Try another email
-        </Button>
-      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <div className="text-green-600">
+              If an account exists with this email, you will receive password reset instructions.
+            </div>
+            <Button onClick={onLoginClick} variant="link">
+              Back to login
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-red-50 text-red-500 p-3 rounded">
-          {error}
-        </div>
-      )}
-      
-      <div>
-        <Input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-center">Reset your password</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 text-red-500 p-3 rounded text-sm">
+              {error}
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <Input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-      <div>
-        <Button 
-          type="submit" 
-          className="w-full"
-          disabled={loading}
-        >
-          {loading ? 'Sending instructions...' : 'Reset password'}
-        </Button>
-      </div>
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={loading}
+          >
+            {loading ? 'Sending instructions...' : 'Reset password'}
+          </Button>
 
-      <div className="text-sm text-center">
-        Remember your password?{' '}
-        <a href="#" className="text-indigo-600 hover:text-indigo-500">
-          Sign in
-        </a>
-      </div>
-    </form>
+          <div className="text-center text-sm">
+            Remember your password?{' '}
+            <Button variant="link" onClick={onLoginClick} className="text-blue-500 hover:text-blue-600">
+              Sign in
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 

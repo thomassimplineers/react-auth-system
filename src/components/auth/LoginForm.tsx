@@ -4,7 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from '../../lib/supabaseClient';
 
-const LoginForm = () => {
+interface LoginFormProps {
+  onRegisterClick: () => void;
+  onForgotPasswordClick: () => void;
+}
+
+const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onForgotPasswordClick }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,7 +49,6 @@ const LoginForm = () => {
           
           <div className="space-y-2">
             <Input
-              id="email"
               type="email"
               placeholder="Email address"
               value={email}
@@ -55,7 +59,6 @@ const LoginForm = () => {
 
           <div className="space-y-2">
             <Input
-              id="password"
               type="password"
               placeholder="Password"
               value={password}
@@ -72,10 +75,18 @@ const LoginForm = () => {
             {loading ? 'Signing in...' : 'Sign in'}
           </Button>
 
-          <div className="text-center text-sm">
-            <Button variant="link" className="text-blue-500 hover:text-blue-600">
-              Forgot password?
-            </Button>
+          <div className="space-y-2 text-center text-sm">
+            <div>
+              <Button variant="link" onClick={onForgotPasswordClick} className="text-blue-500 hover:text-blue-600">
+                Forgot your password?
+              </Button>
+            </div>
+            <div>
+              Don't have an account?{' '}
+              <Button variant="link" onClick={onRegisterClick} className="text-blue-500 hover:text-blue-600">
+                Register
+              </Button>
+            </div>
           </div>
         </form>
       </CardContent>
