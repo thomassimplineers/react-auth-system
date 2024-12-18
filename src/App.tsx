@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabaseClient';
+import { Session } from '@supabase/supabase-js';
+
 import Menu from './components/Menu';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
@@ -9,7 +11,6 @@ import RegisterForm from './components/auth/RegisterForm';
 import PasswordResetForm from './components/auth/PasswordResetForm';
 import AuthCallback from './components/auth/AuthCallback';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import { Session } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   return (
