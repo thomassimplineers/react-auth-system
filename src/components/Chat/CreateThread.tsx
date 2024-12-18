@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Thread } from './types';
+import { supabase } from '../../lib/supabaseClient';
 
 interface CreateThreadProps {
   onCreateThread: (thread: Omit<Thread, 'id'>) => void;
@@ -9,16 +10,28 @@ interface CreateThreadProps {
 const CreateThread: React.FC<CreateThreadProps> = ({ onCreateThread, onClose }) => {
   const [threadName, setThreadName] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!threadName.trim()) return;
 
-    onCreateThread({
-      name: threadName.trim(),
-      participants: [], // Will be populated with current user
-    });
-    setThreadName('');
-    onClose();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const now = new Date().toISOString();
+      onCreateThread({
+        name: threadName.trim(),
+        created_by: user.id,
+        created_at: now,
+        updated_at: now,
+        participants: [user.id]
+      });
+      
+      setThreadName('');
+      onClose();
+    } catch (error) {
+      console.error('Error creating thread:', error);
+    }
   };
 
   return (
