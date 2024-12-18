@@ -1,22 +1,20 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
-interface MenuProps {
-  setCurrentView: (view: string) => void;
-}
-
-const Menu: React.FC<MenuProps> = ({ setCurrentView }) => {
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+const Menu = () => {
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      setIsLoggingOut(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      setLoading(true);
+      await supabase.auth.signOut();
+      navigate('/auth/login');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Error logging out:', error);
     } finally {
-      setIsLoggingOut(false);
+      setLoading(false);
     }
   };
 
@@ -26,18 +24,18 @@ const Menu: React.FC<MenuProps> = ({ setCurrentView }) => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-white font-bold">Dashboard</span>
+              <span className="text-white font-bold">Your App</span>
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
                 <button
-                  onClick={() => setCurrentView('dashboard')}
+                  onClick={() => navigate('/')}
                   className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Dashboard
                 </button>
                 <button
-                  onClick={() => setCurrentView('profile')}
+                  onClick={() => navigate('/profile')}
                   className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Profile
@@ -45,15 +43,15 @@ const Menu: React.FC<MenuProps> = ({ setCurrentView }) => {
               </div>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className={`text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium ${
-              isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isLoggingOut ? 'Signing out...' : 'Sign out'}
-          </button>
+          <div>
+            <button
+              onClick={handleLogout}
+              disabled={loading}
+              className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+            >
+              {loading ? 'Signing out...' : 'Sign out'}
+            </button>
+          </div>
         </div>
       </div>
     </nav>
