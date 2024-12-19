@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from '../../lib/supabaseClient';
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface RegisterFormProps {
-  onLoginClick: () => void;
+  onRegister: (email: string, password: string) => Promise<void>;
+  onNavigateToLogin: () => void;
 }
 
-const RegisterForm: React.FC<RegisterFormProps> = ({ onLoginClick }) => {
+const RegisterForm: React.FC<RegisterFormProps> = ({ onRegister, onNavigateToLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -18,21 +20,19 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onLoginClick }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (password !== confirmPassword) {
+      setError('Lösenorden matchar inte');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) throw error;
+      await onRegister(email, password);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Ett fel uppstod vid registrering');
     } finally {
       setLoading(false);
     }
@@ -40,72 +40,87 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onLoginClick }) => {
 
   if (success) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <div className="text-green-600">
-              Registration successful! Please check your email for verification.
-            </div>
-            <Button onClick={onLoginClick} variant="link">
-              Back to login
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Alert>
+          <AlertDescription>
+            Registreringen lyckades! Kontrollera din e-post för verifieringslänk.
+          </AlertDescription>
+        </Alert>
+        <Button 
+          variant="link" 
+          onClick={onNavigateToLogin}
+          className="w-full"
+        >
+          Tillbaka till inloggning
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-center">Create an account</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 text-red-500 p-3 rounded text-sm">
-              {error}
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            <Input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="space-y-2">
+        <Label htmlFor="email">E-postadress</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="din@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </div>
 
-          <div className="space-y-2">
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Lösenord</Label>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={6}
+        />
+      </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Bekräfta lösenord</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={6}
+        />
+      </div>
+
+      <div className="space-y-4">
+        <Button 
+          type="submit" 
+          className="w-full"
+          disabled={loading}
+        >
+          {loading ? 'Skapar konto...' : 'Skapa konto'}
+        </Button>
+
+        <div className="text-center">
           <Button 
-            type="submit" 
-            className="w-full"
-            disabled={loading}
+            type="button"
+            variant="link" 
+            onClick={onNavigateToLogin}
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            Har du redan ett konto? Logga in
           </Button>
-
-          <div className="text-center text-sm">
-            Already have an account?{' '}
-            <Button variant="link" onClick={onLoginClick} className="text-blue-500 hover:text-blue-600">
-              Sign in
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </form>
   );
 };
 

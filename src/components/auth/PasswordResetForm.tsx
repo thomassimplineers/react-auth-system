@@ -1,18 +1,22 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from '../../lib/supabaseClient';
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface PasswordResetFormProps {
-  onLoginClick: () => void;
+  onPasswordReset: (email: string) => Promise<void>;
+  onNavigateToLogin: () => void;
 }
 
-const PasswordResetForm: React.FC<PasswordResetFormProps> = ({ onLoginClick }) => {
+const PasswordResetForm: React.FC<PasswordResetFormProps> = ({ 
+  onPasswordReset,
+  onNavigateToLogin
+}) => {
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,14 +24,10 @@ const PasswordResetForm: React.FC<PasswordResetFormProps> = ({ onLoginClick }) =
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      });
-
-      if (error) throw error;
+      await onPasswordReset(email);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Ett fel uppstod vid återställning av lösenord');
     } finally {
       setLoading(false);
     }
@@ -35,61 +35,63 @@ const PasswordResetForm: React.FC<PasswordResetFormProps> = ({ onLoginClick }) =
 
   if (success) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <div className="text-green-600">
-              If an account exists with this email, you will receive password reset instructions.
-            </div>
-            <Button onClick={onLoginClick} variant="link">
-              Back to login
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Alert>
+          <AlertDescription>
+            Vi har skickat instruktioner för att återställa ditt lösenord till {email}
+          </AlertDescription>
+        </Alert>
+        <Button 
+          variant="link" 
+          onClick={onNavigateToLogin}
+          className="w-full"
+        >
+          Tillbaka till inloggning
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-center">Reset your password</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 text-red-500 p-3 rounded text-sm">
-              {error}
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            <Input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="space-y-2">
+        <Label htmlFor="email">E-postadress</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="din@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </div>
 
+      <div className="space-y-4">
+        <Button 
+          type="submit" 
+          className="w-full" 
+          disabled={loading}
+        >
+          {loading ? 'Skickar...' : 'Skicka återställningslänk'}
+        </Button>
+
+        <div className="text-center">
           <Button 
-            type="submit" 
-            className="w-full"
-            disabled={loading}
+            type="button"
+            variant="link" 
+            onClick={onNavigateToLogin}
           >
-            {loading ? 'Sending instructions...' : 'Reset password'}
+            Tillbaka till inloggning
           </Button>
-
-          <div className="text-center text-sm">
-            Remember your password?{' '}
-            <Button variant="link" onClick={onLoginClick} className="text-blue-500 hover:text-blue-600">
-              Sign in
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </form>
   );
 };
 
