@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './lib/supabaseClient';
-import { Session } from '@supabase/supabase-js';
 
 import Menu from './components/Menu';
 import Dashboard from './components/Dashboard';
@@ -11,6 +9,7 @@ import RegisterForm from './components/auth/RegisterForm';
 import PasswordResetForm from './components/auth/PasswordResetForm';
 import AuthCallback from './components/auth/AuthCallback';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import AuthLayout from './components/auth/AuthLayout';
 
 const App: React.FC = () => {
   return (
@@ -19,26 +18,53 @@ const App: React.FC = () => {
         <Route path="/auth/callback" element={<AuthCallback />} />
         
         {/* Auth routes */}
-        <Route path="/auth/login" element={<AuthLayout><LoginForm /></AuthLayout>} />
-        <Route path="/auth/register" element={<AuthLayout><RegisterForm /></AuthLayout>} />
-        <Route path="/auth/reset-password" element={<AuthLayout><PasswordResetForm /></AuthLayout>} />
+        <Route 
+          path="/auth/login" 
+          element={
+            <AuthLayout title="Logga in">
+              <LoginForm />
+            </AuthLayout>
+          } 
+        />
+        <Route 
+          path="/auth/register" 
+          element={
+            <AuthLayout title="Skapa konto">
+              <RegisterForm />
+            </AuthLayout>
+          } 
+        />
+        <Route 
+          path="/auth/reset-password" 
+          element={
+            <AuthLayout title="Återställ lösenord">
+              <PasswordResetForm />
+            </AuthLayout>
+          } 
+        />
         
         {/* Protected routes */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout>
-              <Dashboard />
-            </Layout>
-          </ProtectedRoute>
-        } />
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          } 
+        />
         
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <Layout>
-              <Profile />
-            </Layout>
-          </ProtectedRoute>
-        } />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Profile />
+              </Layout>
+            </ProtectedRoute>
+          } 
+        />
         
         {/* Catch all redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -47,15 +73,7 @@ const App: React.FC = () => {
   );
 };
 
-// Layout components
-const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div className="max-w-md w-full">
-      {children}
-    </div>
-  </div>
-);
-
+// Main layout component
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="min-h-screen bg-gray-100">
     <Menu />
