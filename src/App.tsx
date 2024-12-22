@@ -1,60 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from './lib/supabaseClient';
-import { Session } from '@supabase/supabase-js';
+import { AuthProvider } from './contexts/AuthContext';
+import { FeedProvider } from './contexts/FeedContext';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 import Menu from './components/Menu';
 import Dashboard from './components/Dashboard';
-import Profile from './components/Profile';
+import Thread from './components/Chat/Thread';
+import Profile from './components/Profile/Profile';
+import Feed from './components/Feed/Feed';
+import FplLayout from './components/Fpl/FplLayout';
+import FplMyTeam from './components/Fpl/FplMyTeam';
+import FplLeaderboard from './components/Fpl/FplLeaderboard';
+import FplHistory from './components/Fpl/FplHistory';
+import FplEvents from './components/Fpl/FplEvents';
+import Login from './components/Auth/Login';
+import FplDashboard from './components/Fpl/FplDashboard';
 
 const App: React.FC = () => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [currentView, setCurrentView] = useState('dashboard');
-
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-            Sign in to your account
-          </h2>
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            view="sign_in"
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100">
-        <Menu setCurrentView={setCurrentView} />
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          {currentView === 'dashboard' && <Dashboard />}
-          {currentView === 'profile' && <Profile />}
-        </div>
-      </div>
+      <AuthProvider>
+        <FeedProvider>
+          <div className="min-h-screen bg-gray-100">
+            <Menu />
+            <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
+                <Route path="/chat" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/thread/:threadId" element={<ProtectedRoute><Thread /></ProtectedRoute>} />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/fpl" 
+                  element={
+                    <ProtectedRoute>
+                      <FplLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<FplDashboard />} />
+                  <Route path="my-team" element={<FplMyTeam />} />
+                  <Route path="leagues" element={<FplLeaderboard />} />
+                  <Route path="history" element={<FplHistory />} />
+                </Route>
+              </Routes>
+            </div>
+            <FplEvents />
+          </div>
+        </FeedProvider>
+      </AuthProvider>
     </Router>
   );
 };

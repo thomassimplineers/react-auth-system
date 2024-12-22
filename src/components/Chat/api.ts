@@ -1,5 +1,5 @@
-import { supabase } from '../../lib/supabase';
-import { Thread, Message } from './types';
+import { supabase } from '../../lib/supabaseClient';
+import { Thread, Message } from '../../types/thread';
 
 export async function fetchThreads() {
   try {

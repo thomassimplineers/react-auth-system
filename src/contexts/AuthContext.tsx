@@ -1,60 +1,53 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AuthContextType, AuthProviderProps, User } from '../types/auth';
+import { createContext, useContext, ReactNode, useState, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { User, AuthContextType, AuthProviderProps } from '../types/auth'
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null)
 
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
+export function useAuth(): AuthContextType {
+  const context = useContext(AuthContext)
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context;
-};
+  return context
+}
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const login = async (email: string, password: string): Promise<void> => {
-    // Implementera inloggningslogik här
-    setCurrentUser({ email });
-  };
-
-  const register = async (email: string, password: string): Promise<void> => {
-    // Implementera registreringslogik här
-    setCurrentUser({ email });
-  };
-
-  const logout = async (): Promise<void> => {
-    // Implementera utloggningslogik här
-    setCurrentUser(null);
-  };
-
-  const updateProfile = async (data: Partial<User>): Promise<void> => {
-    // Implementera profiluppdateringslogik här
-    setCurrentUser(prev => prev ? { ...prev, ...data } : null);
-  };
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Kontrollera om användaren är inloggad vid sidladdning
-    // Implementera sessions-kontroll här
-    setLoading(false);
-  }, []);
+    // Lyssna på auth-ändringar
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setUser(session?.user ?? null)
+        setLoading(false)
+      }
+    )
 
-  const value: AuthContextType = {
-    currentUser,
-    login,
-    register,
-    logout,
-    updateProfile,
-    loading
-  };
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const value = {
+    user,
+    loading,
+    signIn: async (email: string, password: string) => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+    },
+    signUp: async (email: string, password: string) => {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) throw error
+    },
+    signOut: async () => {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+    }
+  }
 
   return (
     <AuthContext.Provider value={value}>
       {!loading && children}
     </AuthContext.Provider>
-  );
-};
-
-export default AuthContext;
+  )
+}
